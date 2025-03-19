@@ -51,8 +51,8 @@ if __name__ == "__main__":
     
     output_file = sys.argv[1]
     num_clients = int(sys.argv[2])
-    if num_clients <= 0:
-        print("Error: La cantidad de clientes debe ser un número entero positivo")
+    if num_clients < 0:
+        print("Error: La cantidad de clientes no debe ser negativa") 
         sys.exit(1)
     
     generate_compose(output_file, num_clients)
