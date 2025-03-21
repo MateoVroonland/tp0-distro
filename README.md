@@ -202,3 +202,13 @@ Este script llamara al script `mi-generador.py` que generara el archivo `docker-
 ### Ejercicio 2
 
 Para realizar esta tarea, se modifico el archivo `mi-generador.py` para que tanto el cliente como el servidor tengan un volume montado en cada archivo de configuración. De esta forma, los containers pueden usar los archivos de configuracion desde el host lo cual permite modificar los archivos sin necesidad de reconstruir las imagenes, ya que los archivos no estan ligados al build. Ademas, se agrego un `.dockerignore` para que no se copien los archivos de configuración al container y se borro el COPY del archivo de configuración del cliente del Dockerfile.
+
+### Ejercicio 3
+
+Para ejecutar el script `validar-echo-server.sh` se debe correr el siguiente comando:
+
+```bash
+./validar-echo-server.sh
+```
+
+Este script utiliza una imagen de docker la cual tiene netcat instalado por defecto para enviar un mensaje al servidor y esperar recibir el mismo mensaje enviado. Utiliza la network creada por el docker-compose para comunicarse con el servidor, por lo tanto, si antes de correr el script se corre el comando `make docker-compose-up` se podra ver la comunicacion entre este cliente y el servidor correctamente.
