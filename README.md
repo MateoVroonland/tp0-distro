@@ -212,3 +212,9 @@ Para ejecutar el script `validar-echo-server.sh` se debe correr el siguiente com
 ```
 
 Este script utiliza una imagen de docker la cual tiene netcat instalado por defecto para enviar un mensaje al servidor y esperar recibir el mismo mensaje enviado. Utiliza la network creada por el docker-compose para comunicarse con el servidor, por lo tanto, si antes de correr el script se corre el comando `make docker-compose-up` se podra ver la comunicacion entre este cliente y el servidor correctamente.
+
+### Ejercicio 4
+
+En el cliente Go, se utilizó la biblioteca os/signal para escuchar la señal SIGTERM mediante un channel dedicado, que al recibir la señal, envía un mensaje a otro channel para interrumpir la ejecución del loop principal. Cuando esto ocurre, el cliente cierra apropiadamente su conexion activa.
+
+Por su parte, en el servidor Python, se implementó un manejador de señales que marca el flag running como falso para terminar el loop, cierra la posible conexion activa del cliente y finalmente cierra el socket del servidor. Cabe destacar que antes de cerrar la conexión con el cliente llama a shutdown para que el cliente pueda recibir la señal de cierre (esto no es estríctamente necesario, pero es una buena práctica).
