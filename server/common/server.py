@@ -20,7 +20,6 @@ class Server:
             self._active_client_connection.shutdown(socket.SHUT_RDWR)
             self._active_client_connection.close()
         self._server_socket.close()
-        sys.exit(0)
 
     def run(self):
         """
@@ -33,8 +32,9 @@ class Server:
 
         while self._running:
             client_sock = self.__accept_new_connection()
-            self._active_client_connection = client_sock
-            self.__handle_client_connection(client_sock)
+            if client_sock is not None:
+                self._active_client_connection = client_sock
+                self.__handle_client_connection(client_sock)
 
     def __handle_client_connection(self, client_sock):
         """
@@ -63,8 +63,10 @@ class Server:
         Then connection created is printed and returned
         """
 
-        # Connection arrived
-        logging.info('action: accept_connections | result: in_progress')
-        c, addr = self._server_socket.accept()
-        logging.info(f'action: accept_connections | result: success | ip: {addr[0]}')
-        return c
+        try:
+            logging.info('action: accept_connections | result: in_progress')
+            c, addr = self._server_socket.accept()
+            logging.info(f'action: accept_connections | result: success | ip: {addr[0]}')
+            return c
+        except OSError as e:
+            return None
