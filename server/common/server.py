@@ -1,6 +1,7 @@
 import socket
 import logging
 import signal
+import sys
 
 
 class Server:
@@ -11,20 +12,15 @@ class Server:
         self._server_socket.listen(listen_backlog)
         signal.signal(signal.SIGTERM, self.__signal_handler)
         self._running = True
-        self._active_connections = []
+        self._active_client_connection = None
 
     def __signal_handler(self, signum, frame):
         self._running = False
-        for conn in self._active_connections:
-            try:
-                conn.shutdown(socket.SHUT_RDWR)
-                conn.close()
-            except OSError as e:
-                pass
-
-        self._active_connections.clear()
+        if self._active_client_connection:
+            self._active_client_connection.shutdown(socket.SHUT_RDWR)
+            self._active_client_connection.close()
         self._server_socket.close()
-        exit(0)
+        sys.exit(0)
 
     def run(self):
         """
@@ -37,9 +33,7 @@ class Server:
 
         while self._running:
             client_sock = self.__accept_new_connection()
-            if not client_sock:
-                continue
-            self._active_connections.append(client_sock)
+            self._active_client_connection = client_sock
             self.__handle_client_connection(client_sock)
 
     def __handle_client_connection(self, client_sock):
