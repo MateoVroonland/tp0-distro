@@ -47,6 +47,12 @@ func initializeSignalHandler() chan os.Signal {
 
 func handleSignal(signalReceiver chan os.Signal, c *Client) {
 	go func() {
+		sig := <-signalReceiver
+		log.Infof("action: signal_received | result: success | client_id: %v | signal: %v",
+			c.config.ID,
+			sig,
+		)
+
 		if c.conn != nil {
 			c.conn.Close()
 		}
