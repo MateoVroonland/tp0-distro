@@ -198,3 +198,7 @@ Para ejecutar el script `generar-compose.sh` se debe correr el siguiente comando
 ```
 
 Este script llamara al script `mi-generador.py` que generara el archivo `docker-compose-dev.yaml` con la cantidad de clientes especificada. Puede que sea necesario darle permisos de ejecución al script con el comando `chmod +x generar-compose.sh`.
+
+### Ejercicio 2
+
+Para realizar esta tarea, se modifico el archivo `mi-generador.py` para que tanto el cliente como el servidor tengan un volume montado en cada archivo de configuración. De esta forma, los containers pueden usar los archivos de configuracion desde el host lo cual permite modificar los archivos sin necesidad de reconstruir las imagenes, ya que los archivos no estan ligados al build. Ademas, se agrego un `.dockerignore` para que no se copien los archivos de configuración al container y se borro el COPY del archivo de configuración del cliente del Dockerfile.
