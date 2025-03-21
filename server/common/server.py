@@ -11,10 +11,20 @@ class Server:
         self._server_socket.listen(listen_backlog)
         signal.signal(signal.SIGTERM, self.__signal_handler)
         self._running = True
+        self._active_connections = []
 
     def __signal_handler(self, signum, frame):
         self._running = False
+        for conn in self._active_connections:
+            try:
+                conn.shutdown(socket.SHUT_RDWR)
+                conn.close()
+            except OSError as e:
+                pass
+
+        self._active_connections.clear()
         self._server_socket.close()
+        exit(0)
 
     def run(self):
         """
@@ -25,10 +35,11 @@ class Server:
         finishes, servers starts to accept new connections again
         """
 
-        # TODO: Modify this program to handle signal to graceful shutdown
-        # the server
         while self._running:
             client_sock = self.__accept_new_connection()
+            if not client_sock:
+                continue
+            self._active_connections.append(client_sock)
             self.__handle_client_connection(client_sock)
 
     def __handle_client_connection(self, client_sock):
