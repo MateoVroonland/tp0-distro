@@ -83,7 +83,7 @@ func (c *Client) SendBet() error {
 			return err
 		}
 
-		bet := BetFromEnv()
+		bet := BetFromEnv(c.config.ID)
 		protocol := NewProtocol(c.conn)
 		protocol.SendBet(bet)
 	}

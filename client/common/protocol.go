@@ -11,6 +11,7 @@ import (
 )
 
 type Bet struct {
+	agency     string
 	name       string
 	surname    string
 	documentId string
@@ -22,8 +23,9 @@ type Protocol struct {
 	conn net.Conn
 }
 
-func BetFromEnv() *Bet {
+func BetFromEnv(agency string) *Bet {
 	return &Bet{
+		agency:     agency,
 		name:       os.Getenv("NOMBRE"),
 		surname:    os.Getenv("APELLIDO"),
 		documentId: os.Getenv("DOCUMENTO"),
@@ -34,7 +36,7 @@ func BetFromEnv() *Bet {
 
 // format size:name,surname,documentId,birthDate,number\n
 func EncodeBet(bet *Bet) []byte {
-	data := bet.name + "," + bet.surname + "," + bet.documentId + "," + bet.birthDate + "," + bet.number
+	data := bet.agency + "," + bet.name + "," + bet.surname + "," + bet.documentId + "," + bet.birthDate + "," + bet.number
 	data += "\n"
 
 	dataBytes := []byte(data)
