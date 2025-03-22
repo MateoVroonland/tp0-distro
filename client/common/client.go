@@ -23,7 +23,7 @@ type ClientConfig struct {
 // Client Entity that encapsulates how
 type Client struct {
 	config ClientConfig
-	conn   net.Conn
+	conn   *CompleteSocket
 	stop   chan bool
 }
 
@@ -62,7 +62,7 @@ func (c *Client) createClientSocket() error {
 			err,
 		)
 	}
-	c.conn = conn
+	c.conn = NewCompleteSocket(conn)
 	return nil
 }
 
@@ -85,7 +85,7 @@ func (c *Client) Run() error {
 
 		bet := BetFromEnv(c.config.ID)
 		betService := &BetService{
-			sock: NewCompleteSocket(c.conn),
+			sock: c.conn,
 		}
 		err = betService.SendBet(bet)
 		if err != nil {

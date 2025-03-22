@@ -70,3 +70,7 @@ func (c *CompleteSocket) ReceiveAll() (string, error) {
 
 	return string(buffer), nil
 }
+
+func (c *CompleteSocket) Close() error {
+	return c.conn.Close()
+}
