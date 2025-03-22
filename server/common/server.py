@@ -6,6 +6,7 @@ from common.utils import store_bets
 from common.communication import CompleteSocket
 from common.bet_service import BetService
 
+ACK_MESSAGE= "ACK\n"
 
 class Server:
     def __init__(self, port, listen_backlog):
@@ -23,7 +24,7 @@ class Server:
         self._server_socket.close()
 
     def send_ack(self, client_sock):
-        ack = "ok\n"
+        ack = ACK_MESSAGE
         ack_bytes = ack.encode('utf-8')
         message = f"{len(ack_bytes)}:".encode('utf-8') + ack_bytes
         client_sock.send_all(message)

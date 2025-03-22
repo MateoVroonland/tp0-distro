@@ -87,7 +87,14 @@ func (c *Client) Run() error {
 		betService := &BetService{
 			sock: NewCompleteSocket(c.conn),
 		}
-		betService.SendBet(bet)
+		err = betService.SendBet(bet)
+		if err != nil {
+			log.Criticalf("action: send_bet | result: fail | client_id: %v | error: %v",
+				c.config.ID,
+				err,
+			)
+			return err
+		}
 	}
 	log.Infof("action: send_bet_finished | result: success | client_id: %v", c.config.ID)
 	return nil

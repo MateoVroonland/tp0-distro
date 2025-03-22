@@ -47,29 +47,18 @@ func (c *CompleteSocket) SendAll(data []byte) error {
 	return nil
 }
 
-func (c *CompleteSocket) ReadLength() (int, error) {
+func (c *CompleteSocket) ReceiveAll() (string, error) {
 	reader := bufio.NewReader(c.conn)
 
 	lengthStr, err := reader.ReadString(':')
 	if err != nil {
-		return 0, fmt.Errorf("error reading length prefix: %w", err)
+		return "", fmt.Errorf("error reading length prefix: %w", err)
 	}
 
 	lengthStr = strings.TrimSuffix(lengthStr, ":")
 	length, err := strconv.Atoi(lengthStr)
 	if err != nil {
-		return 0, fmt.Errorf("invalid length prefix: %w", err)
-	}
-
-	return length, nil
-}
-
-func (c *CompleteSocket) ReceiveAll() (string, error) {
-	reader := bufio.NewReader(c.conn)
-
-	length, err := c.ReadLength()
-	if err != nil {
-		return "", fmt.Errorf("error reading length: %w", err)
+		return "", fmt.Errorf("invalid length prefix: %w", err)
 	}
 
 	buffer := make([]byte, length)

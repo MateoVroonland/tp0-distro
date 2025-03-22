@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-const ACK_MESSAGE = "ok\n"
+const ACK_MESSAGE = "ACK"
 
 type Bet struct {
 	Agency     string
