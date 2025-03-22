@@ -36,7 +36,10 @@ func BetFromEnv() *Bet {
 func EncodeBet(bet *Bet) []byte {
 	data := bet.name + "," + bet.surname + "," + bet.documentId + "," + bet.birthDate + "," + bet.number
 	data += "\n"
-	size := len(data)
+
+	dataBytes := []byte(data)
+	size := len(dataBytes)
+
 	message := strconv.Itoa(size) + ":" + data
 
 	return []byte(message)

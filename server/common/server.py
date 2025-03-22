@@ -104,8 +104,9 @@ class Server:
             store_bets([bet])
             logging.info(f'action: apuesta_almacenada | result: success | dni: {document_id} | numero: {number}')
         
-            confirmation = "ok\n"
-            confirmation_encoded = f"{len(confirmation)}:{confirmation}".encode('utf-8')
+            confirmation = b"ok\n"
+            confirmation_bytes = len(confirmation)
+            confirmation_encoded = f"{confirmation_bytes}:{confirmation.decode('utf-8')}".encode('utf-8')
             self.send_all(client_sock, confirmation_encoded)    
         except Exception as e:
             logging.error(f"action: handle_client | result: fail | error: {e}")
