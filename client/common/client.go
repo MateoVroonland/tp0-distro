@@ -1,8 +1,6 @@
 package common
 
 import (
-	"bufio"
-	"fmt"
 	"net"
 	"os"
 	"os/signal"
@@ -68,45 +66,48 @@ func (c *Client) createClientSocket() error {
 	return nil
 }
 
-// StartClientLoop Send messages to the client until some time threshold is met
-func (c *Client) StartClientLoop() {
-	// There is an autoincremental msgID to identify every message sent
-	// Messages if the message amount threshold has not been surpassed
-	for msgID := 1; msgID <= c.config.LoopAmount; msgID++ {
-		select {
-		case <-c.stop:
-			c.conn.Close()
-			return
-		default:
-			c.createClientSocket()
+func (c *Client) SendBet() error {
+	select {
+	case <-c.stop:
+		c.conn.Close()
+		return nil
+	default:
+		err := c.createClientSocket()
+		defer c.conn.Close()
 
-			// TODO: Modify the send to avoid short-write
-			fmt.Fprintf(
-				c.conn,
-				"[CLIENT %v] Message N°%v\n",
+		if err != nil {
+			log.Criticalf("action: connect | result: fail | client_id: %v | error: %v",
 				c.config.ID,
-				msgID,
+				err,
 			)
-			msg, err := bufio.NewReader(c.conn).ReadString('\n')
-			c.conn.Close()
+			return err
+		}
 
-			if err != nil {
-				log.Errorf("action: receive_message | result: fail | client_id: %v | error: %v",
-					c.config.ID,
-					err,
-				)
-				return
-			}
+		bet := BetFromEnv()
+		protocol := NewProtocol(c.conn)
+		protocol.SendBet(bet)
+		response, err := protocol.ReceiveAll()
 
-			log.Infof("action: receive_message | result: success | client_id: %v | msg: %v",
+		if err != nil {
+			log.Criticalf("action: receive_response | result: fail | client_id: %v | error: %v",
 				c.config.ID,
-				msg,
+				err,
 			)
+			return err
+		}
 
-			// Wait a time between sending one message and the next one
-			time.Sleep(c.config.LoopPeriod)
-
+		if response == "ok" {
+			log.Infof("action: apuesta_enviada | result: success | dni: %v | numero: %v",
+				bet.documentId,
+				bet.number,
+			)
+		} else {
+			log.Infof("action: apuesta_rechazada | result: fail | dni: %v | numero: %v",
+				bet.documentId,
+				bet.number,
+			)
 		}
 	}
-	log.Infof("action: loop_finished | result: success | client_id: %v", c.config.ID)
+	log.Infof("action: send_bet_finished | result: success | client_id: %v", c.config.ID)
+	return nil
 }
