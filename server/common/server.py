@@ -3,6 +3,7 @@ import logging
 import signal
 
 from common.utils import Bet, store_bets
+from common.communication import CompleteSocket
 
 
 class Server:
@@ -17,9 +18,7 @@ class Server:
 
     def __signal_handler(self, signum, frame):
         self._running = False
-        if self._active_client_connection:
-            self._active_client_connection.shutdown(socket.SHUT_RDWR)
-            self._active_client_connection.close()
+        self._active_client_connection.close()
         self._server_socket.close()
 
     def run(self):
@@ -32,61 +31,14 @@ class Server:
         """
 
         while self._running:
-            client_sock = self.__accept_new_connection()
+            client_sock = CompleteSocket(self.__accept_new_connection())
             if client_sock is not None:
                 self._active_client_connection = client_sock
                 self.__handle_client_connection(client_sock)
 
-    def send_all(self, sock, data):
-        total_sent = 0
-        while total_sent < len(data):
-            sent = sock.send(data[total_sent:])
-            if sent == 0:
-                raise OSError
-            total_sent += sent
-
-    def recv_length_prefix(self, sock):
-        prefix_buffer = bytearray()
-        
-        while b':' not in prefix_buffer:
-            chunk = sock.recv(1)
-            if not chunk:
-                raise ConnectionError("Connection closed while reading length prefix")
-            prefix_buffer.extend(chunk)
-        
-        length_str = prefix_buffer.split(b':')[0].decode('utf-8')
-        try:
-            return int(length_str)
-        except ValueError:
-            raise ValueError(f"Invalid length prefix: {length_str}")
-
-    def recv_exact(self, sock, length):
-        payload = bytearray()
-        remaining = length
-        
-        while remaining > 0:
-            chunk = sock.recv(min(remaining, 1024))
-            
-            if not chunk:
-                raise ConnectionError(f"Connection closed after reading {length - remaining} of {length} bytes")
-            
-            payload.extend(chunk)
-            remaining -= len(chunk)
-        
-        return bytes(payload)
-
-    def recv_all(self, sock):
-        try:
-            length = self.recv_length_prefix(sock)
-            payload = self.recv_exact(sock, length)
-            return payload.decode('utf-8')
-        except (ConnectionError, ValueError) as e:
-            logging.error(f"action: receive_message | result: fail | error: {e}")
-            raise
-
     def __handle_client_connection(self, client_sock):
         try:
-            bet_data = self.recv_all(client_sock)
+            bet_data = client_sock.recv_all()
             fields = bet_data.rstrip('\n').split(',')
             
             if len(fields) != 5:
@@ -106,11 +58,10 @@ class Server:
             confirmation = "ok\n"
             confirmation_bytes = confirmation.encode('utf-8')
             message = f"{len(confirmation_bytes)}:".encode('utf-8') + confirmation_bytes
-            self.send_all(client_sock, message)
+            client_sock.send_all(message)
         except Exception as e:
             logging.error(f"action: handle_client | result: fail | error: {e}")
         finally:
-            client_sock.shutdown(socket.SHUT_WR)
             client_sock.close()
 
     def __accept_new_connection(self):
