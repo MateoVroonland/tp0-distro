@@ -66,7 +66,7 @@ func (c *Client) createClientSocket() error {
 	return nil
 }
 
-func (c *Client) SendBet() error {
+func (c *Client) Run() error {
 	select {
 	case <-c.stop:
 		c.conn.Close()
@@ -84,8 +84,10 @@ func (c *Client) SendBet() error {
 		}
 
 		bet := BetFromEnv(c.config.ID)
-		protocol := NewProtocol(c.conn)
-		protocol.SendBet(bet)
+		betService := &BetService{
+			sock: NewCompleteSocket(c.conn),
+		}
+		betService.SendBet(bet)
 	}
 	log.Infof("action: send_bet_finished | result: success | client_id: %v", c.config.ID)
 	return nil
