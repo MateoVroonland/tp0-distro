@@ -84,7 +84,6 @@ class Server:
             logging.error(f"action: receive_message | result: fail | error: {e}")
             raise
 
-
     def __handle_client_connection(self, client_sock):
         try:
             bet_data = self.recv_all(client_sock)
@@ -104,13 +103,14 @@ class Server:
             store_bets([bet])
             logging.info(f'action: apuesta_almacenada | result: success | dni: {document_id} | numero: {number}')
         
-            confirmation = b"ok\n"
-            confirmation_bytes = len(confirmation)
-            confirmation_encoded = f"{confirmation_bytes}:{confirmation.decode('utf-8')}".encode('utf-8')
-            self.send_all(client_sock, confirmation_encoded)    
+            confirmation = "ok\n"
+            confirmation_bytes = confirmation.encode('utf-8')
+            message = f"{len(confirmation_bytes)}:".encode('utf-8') + confirmation_bytes
+            self.send_all(client_sock, message)
         except Exception as e:
             logging.error(f"action: handle_client | result: fail | error: {e}")
         finally:
+            client_sock.shutdown(socket.SHUT_WR)
             client_sock.close()
 
     def __accept_new_connection(self):

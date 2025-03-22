@@ -108,5 +108,17 @@ func (p *Protocol) SendBet(bet *Bet) (string, error) {
 		return "", err
 	}
 
+	if response == "ok\n" {
+		log.Infof("action: apuesta_enviada | result: success | dni: %v | numero: %v",
+			bet.documentId,
+			bet.number,
+		)
+	} else {
+		log.Infof("action: apuesta_rechazada | result: fail | dni: %v | numero: %v",
+			bet.documentId,
+			bet.number,
+		)
+	}
+
 	return response, nil
 }

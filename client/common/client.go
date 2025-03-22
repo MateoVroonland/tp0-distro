@@ -86,27 +86,6 @@ func (c *Client) SendBet() error {
 		bet := BetFromEnv()
 		protocol := NewProtocol(c.conn)
 		protocol.SendBet(bet)
-		response, err := protocol.ReceiveAll()
-
-		if err != nil {
-			log.Criticalf("action: receive_response | result: fail | client_id: %v | error: %v",
-				c.config.ID,
-				err,
-			)
-			return err
-		}
-
-		if response == "ok" {
-			log.Infof("action: apuesta_enviada | result: success | dni: %v | numero: %v",
-				bet.documentId,
-				bet.number,
-			)
-		} else {
-			log.Infof("action: apuesta_rechazada | result: fail | dni: %v | numero: %v",
-				bet.documentId,
-				bet.number,
-			)
-		}
 	}
 	log.Infof("action: send_bet_finished | result: success | client_id: %v", c.config.ID)
 	return nil
