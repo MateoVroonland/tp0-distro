@@ -60,7 +60,7 @@ func SendAll(conn net.Conn, data []byte) error {
 		}
 
 		if sent == 0 {
-			return nil
+			return fmt.Errorf("connection closed")
 		}
 
 		totalSent += sent
