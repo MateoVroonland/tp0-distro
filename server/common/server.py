@@ -2,8 +2,9 @@ import socket
 import logging
 import signal
 
-from common.utils import Bet, store_bets
+from common.utils import store_bets
 from common.communication import CompleteSocket
+from common.bet_service import BetService
 
 
 class Server:
@@ -20,6 +21,12 @@ class Server:
         self._running = False
         self._active_client_connection.close()
         self._server_socket.close()
+
+    def send_ack(self, client_sock):
+        ack = "ok\n"
+        ack_bytes = ack.encode('utf-8')
+        message = f"{len(ack_bytes)}:".encode('utf-8') + ack_bytes
+        client_sock.send_all(message)
 
     def run(self):
         """
@@ -39,26 +46,10 @@ class Server:
     def __handle_client_connection(self, client_sock):
         try:
             bet_data = client_sock.recv_all()
-            fields = bet_data.rstrip('\n').split(',')
-            
-            if len(fields) != 5:
-                error_msg = f"Invalid number of fields: {len(fields)}"
-                logging.error(f"action: receive_bet | result: fail | error: {error_msg}")
-                return
-            
-            name, surname, document_id, birth_date, number = fields
-            
-            addr = client_sock.getpeername()
-            logging.info(f'action: receive_bet | result: success | ip: {addr[0]} | dni: {document_id} | numero: {number}')
-            bet = Bet(agency=1, first_name=name, last_name=surname, document=document_id, birthdate=birth_date, number=number)
-
+            bet = BetService().parse_bet(bet_data)
             store_bets([bet])
-            logging.info(f'action: apuesta_almacenada | result: success | dni: {document_id} | numero: {number}')
-        
-            confirmation = "ok\n"
-            confirmation_bytes = confirmation.encode('utf-8')
-            message = f"{len(confirmation_bytes)}:".encode('utf-8') + confirmation_bytes
-            client_sock.send_all(message)
+            logging.info(f'action: apuesta_almacenada | result: success | dni: {bet.document} | numero: {bet.number}')
+            self.send_ack(client_sock)
         except Exception as e:
             logging.error(f"action: handle_client | result: fail | error: {e}")
         finally:
