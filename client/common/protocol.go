@@ -83,27 +83,14 @@ func (p *Protocol) ReceiveAll() (string, error) {
 		return "", fmt.Errorf("invalid length prefix: %w", err)
 	}
 
-	payload := make([]byte, length)
-	totalRead := 0
+	buffer := make([]byte, length)
 
-	for totalRead < length {
-		n, err := reader.Read(payload[totalRead:])
-		if err != nil {
-			if err == io.EOF && totalRead+n == length {
-				totalRead += n
-				break
-			}
-			return "", fmt.Errorf("error reading payload: %w", err)
-		}
-
-		if n == 0 {
-			return "", fmt.Errorf("connection closed unexpectedly while reading payload")
-		}
-
-		totalRead += n
+	_, err = io.ReadFull(reader, buffer)
+	if err != nil {
+		return "", fmt.Errorf("error reading payload: %w", err)
 	}
 
-	return string(payload), nil
+	return string(buffer), nil
 }
 
 func (p *Protocol) SendBet(bet *Bet) (string, error) {
