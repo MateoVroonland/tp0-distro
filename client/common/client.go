@@ -67,35 +67,38 @@ func (c *Client) createClientSocket() error {
 }
 
 func (c *Client) Run() error {
-	select {
-	case <-c.stop:
-		c.conn.Close()
-		return nil
-	default:
-		err := c.createClientSocket()
-		defer c.conn.Close()
+	for msgID := 1; msgID <= c.config.LoopAmount; msgID++ {
+		select {
+		case <-c.stop:
+			c.conn.Close()
+			return nil
+		default:
+			err := c.createClientSocket()
+			defer c.conn.Close()
 
-		if err != nil {
-			log.Criticalf("action: connect | result: fail | client_id: %v | error: %v",
-				c.config.ID,
-				err,
-			)
-			return err
+			if err != nil {
+				log.Criticalf("action: connect | result: fail | client_id: %v | error: %v",
+					c.config.ID,
+					err,
+				)
+				return err
+			}
+			bet := BetFromEnv(c.config.ID)
+			betService := &BetService{
+				sock: c.conn,
+			}
+			err = betService.SendBet(bet)
+			if err != nil {
+				log.Criticalf("action: send_bet | result: fail | client_id: %v | error: %v",
+					c.config.ID,
+					err,
+				)
+				return err
+			}
 		}
-
-		bet := BetFromEnv(c.config.ID)
-		betService := &BetService{
-			sock: c.conn,
-		}
-		err = betService.SendBet(bet)
-		if err != nil {
-			log.Criticalf("action: send_bet | result: fail | client_id: %v | error: %v",
-				c.config.ID,
-				err,
-			)
-			return err
-		}
+		log.Infof("action: send_bet_finished | result: success | client_id: %v", c.config.ID)
+		time.Sleep(c.config.LoopPeriod)
 	}
-	log.Infof("action: send_bet_finished | result: success | client_id: %v", c.config.ID)
+	log.Infof("action: loop_finished | result: success | client_id: %v", c.config.ID)
 	return nil
 }
