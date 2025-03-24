@@ -113,6 +113,7 @@ func (s *BetService) SendBatches() error {
 		if err != nil {
 			return err
 		}
+
 		response, err := s.Sock.ReceiveAll()
 		if err != nil {
 			return fmt.Errorf("failed to receive response: %w", err)
@@ -122,10 +123,10 @@ func (s *BetService) SendBatches() error {
 		} else {
 			log.Infof("action: apuesta_recibida | result: fail | cantidad: %d\n", len(batch))
 		}
-		err = s.SendFinBatches()
-		if err != nil {
-			return fmt.Errorf("failed to send FIN: %w", err)
-		}
+	}
+	err := s.SendFinBatches()
+	if err != nil {
+		return fmt.Errorf("failed to send FIN: %w", err)
 	}
 	return nil
 }
