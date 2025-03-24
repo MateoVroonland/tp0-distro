@@ -32,7 +32,7 @@ func NewBetService(sock *CompleteSocket, batchAmount int) *BetService {
 	}
 }
 
-func (s *BetService) LoadBatchesOfBetsFromCsv(filepathCsv string) error {
+func (s *BetService) LoadBatchesOfBetsFromCsv(filepathCsv string, agency string) error {
 	file, err := os.Open(filepathCsv)
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
@@ -45,7 +45,7 @@ func (s *BetService) LoadBatchesOfBetsFromCsv(filepathCsv string) error {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		bet := DecodeBetLine(line)
+		bet := DecodeBetLine(line, agency)
 		currentBatch = append(currentBatch, bet)
 
 		if len(currentBatch) == s.BatchAmount {
@@ -74,16 +74,16 @@ func EncodeBatch(batch []*Bet) []byte {
 	return data
 }
 
-func DecodeBetLine(line string) *Bet {
+func DecodeBetLine(line string, agency string) *Bet {
 	trimmedLine := strings.TrimSuffix(line, "\n")
 	parts := strings.Split(trimmedLine, ",")
 	return &Bet{
-		Agency:     parts[0],
-		Name:       parts[1],
-		Surname:    parts[2],
-		DocumentId: parts[3],
-		BirthDate:  parts[4],
-		Number:     parts[5],
+		Agency:     agency,
+		Name:       parts[0],
+		Surname:    parts[1],
+		DocumentId: parts[2],
+		BirthDate:  parts[3],
+		Number:     parts[4],
 	}
 }
 

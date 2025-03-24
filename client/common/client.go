@@ -12,6 +12,8 @@ import (
 
 var log = logging.MustGetLogger("log")
 
+const AGENCY_CSV_PATH = "agency.csv"
+
 // ClientConfig Configuration used by the client
 type ClientConfig struct {
 	ID            string
@@ -84,7 +86,7 @@ func (c *Client) Run() error {
 			return err
 		}
 		betService := NewBetService(c.conn, c.config.BatchAmount)
-		err = betService.LoadBatchesOfBetsFromCsv("agency.csv")
+		err = betService.LoadBatchesOfBetsFromCsv(AGENCY_CSV_PATH, c.config.ID)
 		if err != nil {
 			log.Criticalf("action: load_batches | result: fail | client_id: %v | error: %v",
 				c.config.ID,
