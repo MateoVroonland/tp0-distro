@@ -87,7 +87,7 @@ func DecodeBetLine(line string, agency string) *Bet {
 	}
 }
 
-func (s *BetService) SendFinBatch() error {
+func (s *BetService) SendFinBatches() error {
 	err := s.Sock.SendAll([]byte(FIN_MESSAGE))
 	if err != nil {
 		return fmt.Errorf("failed to send FIN: %w", err)
@@ -121,7 +121,10 @@ func (s *BetService) SendBatches() error {
 			log.Infof("action: apuesta_recibida | result: success | cantidad: %d\n", len(batch))
 		} else {
 			log.Infof("action: apuesta_recibida | result: fail | cantidad: %d\n", len(batch))
-			return fmt.Errorf("failed to receive ACK")
+		}
+		err = s.SendFinBatches()
+		if err != nil {
+			return fmt.Errorf("failed to send FIN: %w", err)
 		}
 	}
 	return nil

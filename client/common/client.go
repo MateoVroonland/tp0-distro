@@ -103,7 +103,6 @@ func (c *Client) Run() error {
 			)
 			return err
 		}
-		betService.SendFinBatch()
 	}
 	log.Infof("action: send_batches_finished | result: success | client_id: %v", c.config.ID)
 	return nil
