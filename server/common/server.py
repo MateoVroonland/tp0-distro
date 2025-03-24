@@ -6,9 +6,9 @@ from common.utils import store_bets
 from common.communication import CompleteSocket
 from common.parser import parse_batch
 
-ACK_MESSAGE= "ACK\n"
-NACK_MESSAGE= "NACK\n"
-FIN_MESSAGE= "FIN\n"
+ACK_MESSAGE= "ACK"
+NACK_MESSAGE= "NACK"
+FIN_MESSAGE= "FIN"
 
 class Server:
     def __init__(self, port, listen_backlog):
@@ -56,15 +56,21 @@ class Server:
         try:
             bet_data = client_sock.recv_all()
             current_batch = []
-            while bet_data != FIN_MESSAGE.encode('utf-8'):
+            while bet_data:
+                if bet_data == FIN_MESSAGE:
+                    logging.info(f"action: fin_received | result: success")
+                    break
                 current_batch, errors = parse_batch(bet_data)
+                
                 if errors:
                     logging.error(f"action: apuesta_recibida | result: fail | cantidad: {len(current_batch)}")
                     self.send_nack(client_sock)
                     return
+                
                 store_bets(current_batch)
                 logging.info(f'action: apuesta_recibida | result: success | cantidad: {len(current_batch)}')
                 self.send_ack(client_sock)
+                
                 bet_data = client_sock.recv_all()
         except Exception as e:
             logging.error(f"action: handle_client | result: fail | error: {e}")
