@@ -4,9 +4,11 @@ import signal
 
 from common.utils import store_bets
 from common.communication import CompleteSocket
-from common.bet_service import BetService
+from common.parser import parse_batch
 
 ACK_MESSAGE= "ACK\n"
+NACK_MESSAGE= "NACK\n"
+FIN_MESSAGE= "FIN\n"
 
 class Server:
     def __init__(self, port, listen_backlog):
@@ -29,6 +31,12 @@ class Server:
         message = f"{len(ack_bytes)}:".encode('utf-8') + ack_bytes
         client_sock.send_all(message)
 
+    def send_nack(self, client_sock):
+        nack = NACK_MESSAGE
+        nack_bytes = nack.encode('utf-8')
+        message = f"{len(nack_bytes)}:".encode('utf-8') + nack_bytes
+        client_sock.send_all(message)
+
     def run(self):
         """
         Dummy Server loop
@@ -47,10 +55,17 @@ class Server:
     def __handle_client_connection(self, client_sock):
         try:
             bet_data = client_sock.recv_all()
-            bet = BetService().parse_bet(bet_data)
-            store_bets([bet])
-            logging.info(f'action: apuesta_almacenada | result: success | dni: {bet.document} | numero: {bet.number}')
-            self.send_ack(client_sock)
+            current_batch = []
+            while bet_data != FIN_MESSAGE.encode('utf-8'):
+                current_batch, errors = parse_batch(bet_data)
+                if errors:
+                    logging.error(f"action: apuesta_recibida | result: fail | cantidad: {len(current_batch)}")
+                    self.send_nack(client_sock)
+                    return
+                store_bets(current_batch)
+                logging.info(f'action: apuesta_recibida | result: success | cantidad: {len(current_batch)}')
+                self.send_ack(client_sock)
+                bet_data = client_sock.recv_all()
         except Exception as e:
             logging.error(f"action: handle_client | result: fail | error: {e}")
         finally:

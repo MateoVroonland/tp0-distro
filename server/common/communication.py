@@ -57,7 +57,10 @@ class CompleteSocket:
 
     def close(self):
         if self._sock is not None:
-            self._sock.shutdown(socket.SHUT_RDWR)
+            try:
+                self._sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
             self._sock.close()
 
         
