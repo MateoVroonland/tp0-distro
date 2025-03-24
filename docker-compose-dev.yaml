@@ -17,50 +17,53 @@ services:
     environment:
       - CLI_ID=1
       - NOMBRE="Julian"
-      - APELLIDO="Alvarez"
-      - DOCUMENTO=47362950
-      - NACIMIENTO=1991-05-27
-      - NUMERO=2434
+      - APELLIDO="Fernandez"
+      - DOCUMENTO=38943790
+      - NACIMIENTO=1993-09-21
+      - NUMERO=9179
     networks:
       - testing_net
     depends_on:
       - server
     volumes:
       - ./client/config.yaml:/config.yaml
+      - ./.data/dataset/agency-1.csv:/agency.csv
   client2:
     container_name: client2
     image: client:latest
     entrypoint: /client
     environment:
       - CLI_ID=2
-      - NOMBRE="Emiliano"
-      - APELLIDO="Messi"
-      - DOCUMENTO=24587585
-      - NACIMIENTO=2011-04-18
-      - NUMERO=2070
+      - NOMBRE="Lionel"
+      - APELLIDO="Fernandez"
+      - DOCUMENTO=33054010
+      - NACIMIENTO=2010-12-04
+      - NUMERO=6884
     networks:
       - testing_net
     depends_on:
       - server
     volumes:
       - ./client/config.yaml:/config.yaml
+      - ./.data/dataset/agency-2.csv:/agency.csv
   client3:
     container_name: client3
     image: client:latest
     entrypoint: /client
     environment:
       - CLI_ID=3
-      - NOMBRE="Emiliano"
-      - APELLIDO="Martinez"
-      - DOCUMENTO=35654250
-      - NACIMIENTO=2011-10-27
-      - NUMERO=7996
+      - NOMBRE="Lionel"
+      - APELLIDO="Messi"
+      - DOCUMENTO=51350835
+      - NACIMIENTO=2007-06-16
+      - NUMERO=2975
     networks:
       - testing_net
     depends_on:
       - server
     volumes:
       - ./client/config.yaml:/config.yaml
+      - ./.data/dataset/agency-3.csv:/agency.csv
 networks:
   testing_net:
     ipam:
