@@ -65,7 +65,7 @@ services:
       - server
     volumes:
       - ./client/config.yaml:/config.yaml
-      - ./.data/dataset/agency-{i}.csv:/agency.csv
+      - ./.data/agency-{i}.csv:/agency.csv
 """
         compose_content += client_section
 
