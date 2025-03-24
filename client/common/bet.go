@@ -113,15 +113,12 @@ func (s *BetService) SendBatches() error {
 		if err != nil {
 			return err
 		}
-
 		response, err := s.Sock.ReceiveAll()
 		if err != nil {
 			return fmt.Errorf("failed to receive response: %w", err)
 		}
-		if strings.TrimSpace(response) == ACK_MESSAGE {
-			log.Infof("action: apuesta_recibida | result: success | cantidad: %d\n", len(batch))
-		} else {
-			log.Infof("action: apuesta_recibida | result: fail | cantidad: %d\n", len(batch))
+		if strings.TrimSpace(response) != ACK_MESSAGE {
+			return fmt.Errorf("unexpected response: %s", response)
 		}
 	}
 	err := s.SendFinBatches()
