@@ -1,12 +1,14 @@
 package common
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strings"
 )
 
 const ACK_MESSAGE = "ACK"
+const FIN_MESSAGE = "FIN"
 
 type Bet struct {
 	Agency     string
@@ -18,18 +20,44 @@ type Bet struct {
 }
 
 type BetService struct {
-	sock *CompleteSocket
+	Sock        *CompleteSocket
+	BatchAmount int
+	Batches     [][]*Bet
 }
 
-func BetFromEnv(agency string) *Bet {
-	return &Bet{
-		Agency:     agency,
-		Name:       os.Getenv("NOMBRE"),
-		Surname:    os.Getenv("APELLIDO"),
-		DocumentId: os.Getenv("DOCUMENTO"),
-		BirthDate:  os.Getenv("NACIMIENTO"),
-		Number:     os.Getenv("NUMERO"),
+func NewBetService(sock *CompleteSocket, batchAmount int) *BetService {
+	return &BetService{
+		Sock:        sock,
+		BatchAmount: batchAmount,
 	}
+}
+
+func (s *BetService) LoadBatchesOfBetsFromCsv(filepathCsv string) error {
+	file, err := os.Open(filepathCsv)
+	if err != nil {
+		return fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+
+	currentBatch := make([]*Bet, 0, s.BatchAmount)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		bet := DecodeBetLine(line)
+		currentBatch = append(currentBatch, bet)
+
+		if len(currentBatch) == s.BatchAmount {
+			s.Batches = append(s.Batches, currentBatch)
+			currentBatch = make([]*Bet, 0, s.BatchAmount)
+		}
+	}
+	if len(currentBatch) > 0 {
+		s.Batches = append(s.Batches, currentBatch)
+	}
+
+	return nil
 }
 
 func EncodeBet(bet *Bet) []byte {
@@ -38,26 +66,53 @@ func EncodeBet(bet *Bet) []byte {
 	return []byte(data)
 }
 
-func (s *BetService) SendBet(bet *Bet) error {
-	betData := EncodeBet(bet)
+func EncodeBatch(batch []*Bet) []byte {
+	var data []byte
+	for _, bet := range batch {
+		data = append(data, EncodeBet(bet)...)
+	}
+	return data
+}
 
-	err := s.sock.SendAll(betData)
+func DecodeBetLine(line string) *Bet {
+	trimmedLine := strings.TrimSuffix(line, "\n")
+	parts := strings.Split(trimmedLine, ",")
+	return &Bet{
+		Agency:     parts[0],
+		Name:       parts[1],
+		Surname:    parts[2],
+		DocumentId: parts[3],
+		BirthDate:  parts[4],
+		Number:     parts[5],
+	}
+}
+
+func (s *BetService) SendFinBatch() error {
+	err := s.Sock.SendAll([]byte(FIN_MESSAGE))
 	if err != nil {
-		return fmt.Errorf("failed to send bet: %w", err)
+		return fmt.Errorf("failed to send FIN: %w", err)
 	}
 
-	response, err := s.sock.ReceiveAll()
+	return nil
+}
+
+func (s *BetService) SendBatch(batch []*Bet) error {
+	batchData := EncodeBatch(batch)
+
+	err := s.Sock.SendAll(batchData)
 	if err != nil {
-		return fmt.Errorf("failed to receive response: %w", err)
+		return fmt.Errorf("failed to send batch: %w", err)
 	}
 
-	if strings.TrimSpace(response) == ACK_MESSAGE {
-		log.Infof("action: apuesta_enviada | result: success | dni: %v | numero: %v",
-			bet.DocumentId, bet.Number)
-	} else {
-		log.Infof("action: apuesta_rechazada | result: fail | dni: %v | numero: %v | response: %s",
-			bet.DocumentId, bet.Number, response)
-	}
+	return nil
+}
 
+func (s *BetService) SendBatches() error {
+	for _, batch := range s.Batches {
+		err := s.SendBatch(batch)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
