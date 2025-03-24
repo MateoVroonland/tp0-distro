@@ -25,18 +25,6 @@ class Server:
         self._active_client_connection.close()
         self._server_socket.close()
 
-    def send_ack(self, client_sock):
-        ack = ACK_MESSAGE
-        ack_bytes = ack.encode('utf-8')
-        message = f"{len(ack_bytes)}:".encode('utf-8') + ack_bytes
-        client_sock.send_all(message)
-
-    def send_nack(self, client_sock):
-        nack = NACK_MESSAGE
-        nack_bytes = nack.encode('utf-8')
-        message = f"{len(nack_bytes)}:".encode('utf-8') + nack_bytes
-        client_sock.send_all(message)
-
     def run(self):
         """
         Dummy Server loop
@@ -64,12 +52,12 @@ class Server:
                 
                 if errors:
                     logging.error(f"action: apuesta_recibida | result: fail | cantidad: {len(current_batch)}")
-                    self.send_nack(client_sock)
+                    client_sock.send_all(NACK_MESSAGE.encode('utf-8'))
                     return
                 
                 store_bets(current_batch)
                 logging.info(f'action: apuesta_recibida | result: success | cantidad: {len(current_batch)}')
-                self.send_ack(client_sock)
+                client_sock.send_all(ACK_MESSAGE.encode('utf-8'))
                 
                 bet_data = client_sock.recv_all()
         except Exception as e:

@@ -7,10 +7,14 @@ class CompleteSocket:
         self._sock = socket
         self._buffer = bytearray()
 
+    def append_message_length(self, message):
+        return f"{len(message)}:".encode('utf-8') + message
+
     def send_all(self, data):
+        final_data = self.append_message_length(data)
         total_sent = 0
-        while total_sent < len(data):
-            sent = self._sock.send(data[total_sent:])
+        while total_sent < len(final_data):
+            sent = self._sock.send(final_data[total_sent:])
             if sent == 0:
                 raise OSError
             total_sent += sent
