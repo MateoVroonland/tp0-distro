@@ -49,3 +49,10 @@ def load_bets() -> list[Bet]:
         for row in reader:
             yield Bet(row[0], row[1], row[2], row[3], row[4], row[5])
 
+def winners_for_agency(agency: int) -> int:
+    winners = []
+    for bet in load_bets():
+        if bet.agency == agency and has_won(bet):
+            winners.append(bet.document)
+    return winners
+

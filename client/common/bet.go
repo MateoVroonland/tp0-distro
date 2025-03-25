@@ -11,7 +11,6 @@ const (
 	MSG_TYPE_ACK         = "ACK"
 	MSG_TYPE_NACK        = "NACK"
 	MSG_TYPE_FIN         = "FIN"
-	MSG_TYPE_DRAW_READY  = "DRAW_READY"
 	MSG_TYPE_GET_WINNERS = "GET_WINNERS"
 	MSG_TYPE_BATCH       = "BATCH"
 	MSG_TYPE_WINNERS     = "WINNERS"
@@ -68,7 +67,30 @@ func (s *BetService) ProcessCSVInBatches(filepathCsv string, agency string) erro
 		return fmt.Errorf("failed to send FIN: %w", err)
 	}
 
+	err = s.SendGetWinners()
+	if err != nil {
+		return fmt.Errorf("failed to send GET_WINNERS: %w", err)
+	}
+
+	response, msgType, err := s.Sock.ReceiveAll()
+	if err != nil {
+		return fmt.Errorf("failed to receive response: %w", err)
+	}
+	if msgType != MSG_TYPE_WINNERS {
+		return fmt.Errorf("received unexpected message type: %s", msgType)
+	}
+
+	winners := DecodeWinners(response)
+	winnersAmount := len(winners)
+
+	log.Infof("action: consulta_ganadores | result: success | cant_ganadores: %d", winnersAmount)
+
 	return nil
+}
+
+func DecodeWinners(data string) []string {
+	trimmedLine := strings.TrimSuffix(data, "\n")
+	return strings.Split(trimmedLine, ",")
 }
 
 func EncodeBet(bet *Bet) []byte {
@@ -102,6 +124,15 @@ func (s *BetService) SendFinBatches() error {
 	err := s.Sock.SendAll([]byte(MSG_TYPE_FIN), MSG_TYPE_FIN)
 	if err != nil {
 		return fmt.Errorf("failed to send FIN: %w", err)
+	}
+
+	return nil
+}
+
+func (s *BetService) SendGetWinners() error {
+	err := s.Sock.SendAll([]byte(MSG_TYPE_GET_WINNERS), MSG_TYPE_GET_WINNERS)
+	if err != nil {
+		return fmt.Errorf("failed to send GET_WINNERS: %w", err)
 	}
 
 	return nil

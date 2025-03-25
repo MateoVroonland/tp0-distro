@@ -2,14 +2,13 @@ import socket
 import logging
 import signal
 
-from common.utils import store_bets
+from common.utils import store_bets, winners_for_agency
 from common.communication import CompleteSocket
 from common.parser import parse_batch
 
 MSG_TYPE_ACK="ACK"
 MSG_TYPE_NACK="NACK"
 MSG_TYPE_FIN="FIN"
-MSG_TYPE_DRAW_READY="DRAW_READY"
 MSG_TYPE_GET_WINNERS="GET_WINNERS"
 MSG_TYPE_BATCH="BATCH"
 MSG_TYPE_WINNERS="WINNERS"
@@ -23,6 +22,7 @@ class Server:
         signal.signal(signal.SIGTERM, self.__signal_handler)
         self._running = True
         self._active_client_connection = None
+        self._finished_agencies = {}
 
     def __signal_handler(self, signum, frame):
         self._running = False
@@ -46,6 +46,7 @@ class Server:
 
     def process_batch(self, client_sock, bet_data):
         current_batch, errors = parse_batch(bet_data)
+        agency = current_batch[0].agency
         
         if errors:
             logging.error(f"action: apuesta_recibida | result: fail | cantidad: {len(current_batch)}")
@@ -55,19 +56,39 @@ class Server:
         store_bets(current_batch)
         logging.info(f'action: apuesta_recibida | result: success | cantidad: {len(current_batch)}')
         client_sock.send_all(MSG_TYPE_ACK.encode('utf-8'), MSG_TYPE_ACK)
+        return agency
+    
+    def all_agencies_have_finished(self):
+        for _, finished in self._finished_agencies.items():
+            if not finished:
+                return False
+        return True
+
+    def process_draw(self, agency_id):
+        winners = winners_for_agency(agency_id)
+        return winners
+    
+    # document1,dcoument2,document3\n
+    def send_winners(self, client_sock, winners):
+        winners = ",".join(winners)
+        winners = winners + "\n"
+        client_sock.send_all(winners.encode('utf-8'), MSG_TYPE_WINNERS)
 
     def __handle_client_connection(self, client_sock):
         try:
+            agency_id = 0
             bet_data, msg_type = client_sock.recv_all()
             while bet_data:
                 if msg_type == MSG_TYPE_FIN:
-                   break
+                    self._finished_agencies[agency_id] = True
                 elif msg_type == MSG_TYPE_BATCH:
-                    self.process_batch(client_sock, bet_data)
-                elif msg_type == MSG_TYPE_DRAW_READY:
-                    pass
+                   agency_id = self.process_batch(client_sock, bet_data)
+                   self._finished_agencies[agency_id] = False
                 elif msg_type == MSG_TYPE_GET_WINNERS:
-                    pass
+                    if self.all_agencies_have_finished():
+                        logging.info(f"action: sorteo | result: success")
+                        winners = self.process_draw(agency_id)
+                        self.send_winners(client_sock, winners)
                 else:
                     logging.error(f"action: handle_client | result: fail | error: {e}")
                     client_sock.send_all(MSG_TYPE_NACK.encode('utf-8'), MSG_TYPE_NACK)
