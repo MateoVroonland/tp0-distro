@@ -88,6 +88,7 @@ class Server:
                         logging.info(f"action: sorteo | result: success")
                         winners = self.process_draw(agency_id)
                         self.send_winners(client_sock, winners)
+                        break
                 else:
                     logging.error(f"action: handle_client | result: fail | error: {e}")
                     client_sock.send_all(MSG_TYPE_NACK.encode('utf-8'), MSG_TYPE_NACK)
