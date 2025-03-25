@@ -25,8 +25,13 @@ func AppendDataLength(data []byte) []byte {
 	return append([]byte(lengthStr+":"), data...)
 }
 
-func (c *CompleteSocket) SendAll(data []byte) error {
-	message := AppendDataLength(data)
+func AppendMessageType(messageType string, data []byte) []byte {
+	return append([]byte(messageType+":"), data...)
+}
+
+func (c *CompleteSocket) SendAll(data []byte, messageType string) error {
+	typedData := AppendMessageType(messageType, data)
+	message := AppendDataLength(typedData)
 	totalSent := 0
 	messageLen := len(message)
 
@@ -47,28 +52,34 @@ func (c *CompleteSocket) SendAll(data []byte) error {
 	return nil
 }
 
-func (c *CompleteSocket) ReceiveAll() (string, error) {
+func (c *CompleteSocket) ReceiveAll() (string, string, error) {
 	reader := bufio.NewReader(c.conn)
 
 	lengthStr, err := reader.ReadString(':')
 	if err != nil {
-		return "", fmt.Errorf("error reading length prefix: %w", err)
+		return "", "", fmt.Errorf("error reading length prefix: %w", err)
 	}
 
 	lengthStr = strings.TrimSuffix(lengthStr, ":")
 	length, err := strconv.Atoi(lengthStr)
 	if err != nil {
-		return "", fmt.Errorf("invalid length prefix: %w", err)
+		return "", "", fmt.Errorf("invalid length prefix: %w", err)
 	}
+
+	messageType, err := reader.ReadString(':')
+	if err != nil {
+		return "", "", fmt.Errorf("error reading message type: %w", err)
+	}
+	messageType = strings.TrimSuffix(messageType, ":")
 
 	buffer := make([]byte, length)
 
 	_, err = io.ReadFull(reader, buffer)
 	if err != nil {
-		return "", fmt.Errorf("error reading payload: %w", err)
+		return "", "", fmt.Errorf("error reading payload: %w", err)
 	}
 
-	return string(buffer), nil
+	return string(buffer), messageType, nil
 }
 
 func (c *CompleteSocket) Close() error {

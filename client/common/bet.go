@@ -7,8 +7,15 @@ import (
 	"strings"
 )
 
-const ACK_MESSAGE = "ACK"
-const FIN_MESSAGE = "FIN"
+const (
+	MSG_TYPE_ACK         = "ACK"
+	MSG_TYPE_NACK        = "NACK"
+	MSG_TYPE_FIN         = "FIN"
+	MSG_TYPE_DRAW_READY  = "DRAW_READY"
+	MSG_TYPE_GET_WINNERS = "GET_WINNERS"
+	MSG_TYPE_BATCH       = "BATCH"
+	MSG_TYPE_WINNERS     = "WINNERS"
+)
 
 type Bet struct {
 	Agency     string
@@ -92,7 +99,7 @@ func DecodeBetLine(line string, agency string) *Bet {
 }
 
 func (s *BetService) SendFinBatches() error {
-	err := s.Sock.SendAll([]byte(FIN_MESSAGE))
+	err := s.Sock.SendAll([]byte(MSG_TYPE_FIN), MSG_TYPE_FIN)
 	if err != nil {
 		return fmt.Errorf("failed to send FIN: %w", err)
 	}
@@ -103,16 +110,16 @@ func (s *BetService) SendFinBatches() error {
 func (s *BetService) SendBatch(batch []*Bet) error {
 	batchData := EncodeBatch(batch)
 
-	err := s.Sock.SendAll(batchData)
+	err := s.Sock.SendAll(batchData, MSG_TYPE_BATCH)
 	if err != nil {
 		return fmt.Errorf("failed to send batch: %w", err)
 	}
-	response, err := s.Sock.ReceiveAll()
+	_, msgType, err := s.Sock.ReceiveAll()
 	if err != nil {
 		return fmt.Errorf("failed to receive response: %w", err)
 	}
-	if strings.TrimSpace(response) != ACK_MESSAGE {
-		return fmt.Errorf("unexpected response: %s", response)
+	if msgType == MSG_TYPE_NACK {
+		return fmt.Errorf("received NACK, bad batch format")
 	}
 
 	return nil
