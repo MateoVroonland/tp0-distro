@@ -66,20 +66,22 @@ func (c *CompleteSocket) ReceiveAll() (string, string, error) {
 		return "", "", fmt.Errorf("invalid length prefix: %w", err)
 	}
 
-	messageType, err := reader.ReadString(':')
-	if err != nil {
-		return "", "", fmt.Errorf("error reading message type: %w", err)
-	}
-	messageType = strings.TrimSuffix(messageType, ":")
-
 	buffer := make([]byte, length)
 
-	_, err = io.ReadFull(reader, buffer)
-	if err != nil {
+	read, err := io.ReadFull(reader, buffer)
+	if err != nil || read != length {
 		return "", "", fmt.Errorf("error reading payload: %w", err)
 	}
 
-	return string(buffer), messageType, nil
+	content := string(buffer)
+	parts := strings.SplitN(content, ":", 2)
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("invalid message format: %s", content)
+	}
+	messageType := parts[0]
+	payload := parts[1]
+
+	return string(payload), messageType, nil
 }
 
 func (c *CompleteSocket) Close() error {
