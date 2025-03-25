@@ -6,9 +6,13 @@ from common.utils import store_bets
 from common.communication import CompleteSocket
 from common.parser import parse_batch
 
-ACK_MESSAGE= "ACK"
-NACK_MESSAGE= "NACK"
-FIN_MESSAGE= "FIN"
+MSG_TYPE_ACK="ACK"
+MSG_TYPE_NACK="NACK"
+MSG_TYPE_FIN="FIN"
+MSG_TYPE_DRAW_READY="DRAW_READY"
+MSG_TYPE_GET_WINNERS="GET_WINNERS"
+MSG_TYPE_BATCH="BATCH"
+MSG_TYPE_WINNERS="WINNERS"
 
 class Server:
     def __init__(self, port, listen_backlog):
@@ -40,26 +44,35 @@ class Server:
                 self._active_client_connection = client_sock
                 self.__handle_client_connection(client_sock)
 
+    def process_batch(self, client_sock, bet_data):
+        current_batch, errors = parse_batch(bet_data)
+        
+        if errors:
+            logging.error(f"action: apuesta_recibida | result: fail | cantidad: {len(current_batch)}")
+            client_sock.send_all(MSG_TYPE_NACK.encode('utf-8'), MSG_TYPE_NACK)
+            return
+        
+        store_bets(current_batch)
+        logging.info(f'action: apuesta_recibida | result: success | cantidad: {len(current_batch)}')
+        client_sock.send_all(MSG_TYPE_ACK.encode('utf-8'), MSG_TYPE_ACK)
+
     def __handle_client_connection(self, client_sock):
         try:
-            bet_data = client_sock.recv_all()
-            current_batch = []
+            bet_data, msg_type = client_sock.recv_all()
             while bet_data:
-                if bet_data == FIN_MESSAGE:
-                    logging.info(f"action: fin_received | result: success")
+                if msg_type == MSG_TYPE_FIN:
+                   break
+                elif msg_type == MSG_TYPE_BATCH:
+                    self.process_batch(client_sock, bet_data)
+                elif msg_type == MSG_TYPE_DRAW_READY:
+                    pass
+                elif msg_type == MSG_TYPE_GET_WINNERS:
+                    pass
+                else:
+                    logging.error(f"action: handle_client | result: fail | error: {e}")
+                    client_sock.send_all(MSG_TYPE_NACK.encode('utf-8'), MSG_TYPE_NACK)
                     break
-                current_batch, errors = parse_batch(bet_data)
-                
-                if errors:
-                    logging.error(f"action: apuesta_recibida | result: fail | cantidad: {len(current_batch)}")
-                    client_sock.send_all(NACK_MESSAGE.encode('utf-8'))
-                    return
-                
-                store_bets(current_batch)
-                logging.info(f'action: apuesta_recibida | result: success | cantidad: {len(current_batch)}')
-                client_sock.send_all(ACK_MESSAGE.encode('utf-8'))
-                
-                bet_data = client_sock.recv_all()
+                bet_data, msg_type = client_sock.recv_all()
         except Exception as e:
             logging.error(f"action: handle_client | result: fail | error: {e}")
         finally:

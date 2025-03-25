@@ -1,17 +1,21 @@
 import socket
 
-LENGTH_DELIMITER = b':'
+PARAMETER_DELIMITER = b':'
 
 class CompleteSocket:
     def __init__(self, socket):
         self._sock = socket
         self._buffer = bytearray()
 
-    def append_message_length(self, message):
-        return f"{len(message)}:".encode('utf-8') + message
+    def append_message_type(self, message_type, message):
+        return f"{message_type}{PARAMETER_DELIMITER}".encode('utf-8') + message
 
-    def send_all(self, data):
-        final_data = self.append_message_length(data)
+    def append_message_length(self, message):
+        return f"{len(message)}{PARAMETER_DELIMITER}".encode('utf-8') + message
+
+    def send_all(self, data, message_type):
+        typed_data = self.append_message_type(message_type, data)
+        final_data = self.append_message_length(typed_data)
         total_sent = 0
         while total_sent < len(final_data):
             sent = self._sock.send(final_data[total_sent:])
@@ -21,13 +25,13 @@ class CompleteSocket:
     
     def recv_length_prefix(self): 
         self._buffer.clear()       
-        while LENGTH_DELIMITER not in self._buffer:
+        while PARAMETER_DELIMITER not in self._buffer:
             chunk = self._sock.recv(1)
             if not chunk:
                 raise ConnectionError("Connection closed while reading length prefix")
             self._buffer.extend(chunk)
         
-        length_str = self._buffer.split(LENGTH_DELIMITER)[0].decode('utf-8')
+        length_str = self._buffer.split(PARAMETER_DELIMITER)[0].decode('utf-8')
         try:
             return int(length_str)
         except ValueError:
@@ -51,8 +55,10 @@ class CompleteSocket:
     def recv_all(self):
         try:
             length = self.recv_length_prefix()
-            payload = self.recv_exact(length)
-            return payload.decode('utf-8')
+            fields = self.recv_exact(length).split(PARAMETER_DELIMITER)
+            message_type = fields[0].decode('utf-8')
+            payload = fields[1].decode('utf-8')
+            return payload, message_type
         except (ConnectionError, ValueError) as e:
             raise
 
