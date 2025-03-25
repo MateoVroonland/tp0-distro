@@ -39,6 +39,9 @@ func InitConfig() (*viper.Viper, error) {
 	v.BindEnv("log", "level")
 	v.BindEnv("batch", "maxAmount")
 
+	// Assuming each bet is 100 bytes, 75 bets will be sent in each batch
+	v.SetDefault("batch.maxAmount", 75)
+
 	// Try to read configuration from config file. If config file
 	// does not exists then ReadInConfig will fail but configuration
 	// can be loaded from the environment variables so we shouldn't
