@@ -8,10 +8,12 @@ class CompleteSocket:
         self._buffer = bytearray()
 
     def append_message_type(self, message_type, message):
-        return f"{message_type}{PARAMETER_DELIMITER}".encode('utf-8') + message
+        type_bytes = message_type.encode('utf-8')
+        return type_bytes + PARAMETER_DELIMITER + message
 
     def append_message_length(self, message):
-        return f"{len(message)}{PARAMETER_DELIMITER}".encode('utf-8') + message
+        length_bytes = str(len(message)).encode('utf-8')
+        return length_bytes + PARAMETER_DELIMITER + message
 
     def send_all(self, data, message_type):
         typed_data = self.append_message_type(message_type, data)

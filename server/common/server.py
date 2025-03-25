@@ -68,7 +68,6 @@ class Server:
         winners = winners_for_agency(agency_id)
         return winners
     
-    # document1,dcoument2,document3\n
     def send_winners(self, client_sock, winners):
         winners = ",".join(winners)
         winners = winners + "\n"
