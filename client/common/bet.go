@@ -22,7 +22,6 @@ type Bet struct {
 type BetService struct {
 	Sock        *CompleteSocket
 	BatchAmount int
-	Batches     [][]*Bet
 }
 
 func NewBetService(sock *CompleteSocket, batchAmount int) *BetService {
@@ -32,7 +31,7 @@ func NewBetService(sock *CompleteSocket, batchAmount int) *BetService {
 	}
 }
 
-func (s *BetService) LoadBatchesOfBetsFromCsv(filepathCsv string, agency string) error {
+func (s *BetService) ProcessCSVInBatches(filepathCsv string, agency string) error {
 	file, err := os.Open(filepathCsv)
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
@@ -49,12 +48,17 @@ func (s *BetService) LoadBatchesOfBetsFromCsv(filepathCsv string, agency string)
 		currentBatch = append(currentBatch, bet)
 
 		if len(currentBatch) == s.BatchAmount {
-			s.Batches = append(s.Batches, currentBatch)
+			s.SendBatch(currentBatch)
 			currentBatch = make([]*Bet, 0, s.BatchAmount)
 		}
 	}
 	if len(currentBatch) > 0 {
-		s.Batches = append(s.Batches, currentBatch)
+		s.SendBatch(currentBatch)
+	}
+
+	err = s.SendFinBatches()
+	if err != nil {
+		return fmt.Errorf("failed to send FIN: %w", err)
 	}
 
 	return nil
@@ -103,27 +107,13 @@ func (s *BetService) SendBatch(batch []*Bet) error {
 	if err != nil {
 		return fmt.Errorf("failed to send batch: %w", err)
 	}
-
-	return nil
-}
-
-func (s *BetService) SendBatches() error {
-	for _, batch := range s.Batches {
-		err := s.SendBatch(batch)
-		if err != nil {
-			return err
-		}
-		response, err := s.Sock.ReceiveAll()
-		if err != nil {
-			return fmt.Errorf("failed to receive response: %w", err)
-		}
-		if strings.TrimSpace(response) != ACK_MESSAGE {
-			return fmt.Errorf("unexpected response: %s", response)
-		}
-	}
-	err := s.SendFinBatches()
+	response, err := s.Sock.ReceiveAll()
 	if err != nil {
-		return fmt.Errorf("failed to send FIN: %w", err)
+		return fmt.Errorf("failed to receive response: %w", err)
 	}
+	if strings.TrimSpace(response) != ACK_MESSAGE {
+		return fmt.Errorf("unexpected response: %s", response)
+	}
+
 	return nil
 }

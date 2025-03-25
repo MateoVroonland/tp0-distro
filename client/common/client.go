@@ -86,18 +86,9 @@ func (c *Client) Run() error {
 			return err
 		}
 		betService := NewBetService(c.conn, c.config.BatchAmount)
-		err = betService.LoadBatchesOfBetsFromCsv(AGENCY_CSV_PATH, c.config.ID)
+		err = betService.ProcessCSVInBatches(AGENCY_CSV_PATH, c.config.ID)
 		if err != nil {
-			log.Criticalf("action: load_batches | result: fail | client_id: %v | error: %v",
-				c.config.ID,
-				err,
-			)
-			return err
-		}
-
-		err = betService.SendBatches()
-		if err != nil {
-			log.Criticalf("action: send_batches | result: fail | client_id: %v | error: %v",
+			log.Criticalf("action: process_csv | result: fail | client_id: %v | error: %v",
 				c.config.ID,
 				err,
 			)
