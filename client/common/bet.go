@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 const (
@@ -30,11 +31,16 @@ type BetService struct {
 	BatchAmount int
 }
 
-func NewBetService(sock *CompleteSocket, batchAmount int) *BetService {
+func NewBetService(serverAddr string, batchAmount int) (*BetService, error) {
+	sock, err := NewCompleteSocket(serverAddr)
+	if err != nil {
+		return nil, err
+	}
+
 	return &BetService{
 		Sock:        sock,
 		BatchAmount: batchAmount,
-	}
+	}, nil
 }
 
 func (s *BetService) ProcessCSVInBatches(filepathCsv string, agency string) error {
@@ -67,17 +73,57 @@ func (s *BetService) ProcessCSVInBatches(filepathCsv string, agency string) erro
 		return fmt.Errorf("failed to send FIN: %w", err)
 	}
 
-	err = s.SendGetWinners()
+	return nil
+}
+
+func (s *BetService) AskForWinners() (string, error) {
+	err := s.SendGetWinners()
 	if err != nil {
-		return fmt.Errorf("failed to send GET_WINNERS: %w", err)
+		return "", fmt.Errorf("failed to send GET_WINNERS: %w", err)
 	}
 
 	response, msgType, err := s.Sock.ReceiveAll()
 	if err != nil {
-		return fmt.Errorf("failed to receive response: %w", err)
+		return "", fmt.Errorf("failed to receive response: %w", err)
 	}
-	if msgType != MSG_TYPE_WINNERS {
-		return fmt.Errorf("received unexpected message type: %s", msgType)
+	if msgType != MSG_TYPE_ACK {
+		return "", fmt.Errorf("winners not ready, clients missing")
+	}
+
+	return response, nil
+}
+
+func (s *BetService) HandleWinners() error {
+	maxTries := 10
+	initialWaitTime := 200 * time.Millisecond
+	waitTime := initialWaitTime
+	response := ""
+	var err error
+	successfulResponse := false
+	serverAddr := s.Sock.GetServerAddr()
+
+	for tries := 1; tries <= maxTries; tries++ {
+		response, err = s.AskForWinners()
+		if err != nil {
+			log.Errorf("winners not ready, retrying in %v", waitTime)
+			s.Sock.Close()
+			time.Sleep(waitTime)
+			waitTime *= 2
+			newSock, connErr := NewCompleteSocket(serverAddr)
+			if connErr != nil {
+				log.Errorf("failed to reconnect: %v", connErr)
+				continue
+			}
+			s.Sock = newSock
+
+			continue
+		}
+		successfulResponse = true
+		break
+	}
+
+	if !successfulResponse {
+		return fmt.Errorf("failed to get winners after %d attempts", maxTries)
 	}
 
 	winners := DecodeWinners(response)
@@ -157,4 +203,8 @@ func (s *BetService) SendBatch(batch []*Bet) error {
 	}
 
 	return nil
+}
+
+func CloseBetService(s *BetService) {
+	s.Sock.Close()
 }

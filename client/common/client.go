@@ -1,7 +1,6 @@
 package common
 
 import (
-	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -26,7 +25,6 @@ type ClientConfig struct {
 // Client Entity that encapsulates how
 type Client struct {
 	config ClientConfig
-	conn   *CompleteSocket
 	stop   chan bool
 }
 
@@ -56,36 +54,21 @@ func NewClient(config ClientConfig) *Client {
 // CreateClientSocket Initializes client socket. In case of
 // failure, error is printed in stdout/stderr and exit 1
 // is returned
-func (c *Client) createClientSocket() error {
-	conn, err := net.Dial("tcp", c.config.ServerAddress)
-	if err != nil {
-		log.Criticalf(
-			"action: connect | result: fail | client_id: %v | error: %v",
-			c.config.ID,
-			err,
-		)
-	}
-	c.conn = NewCompleteSocket(conn)
-	return nil
-}
 
 func (c *Client) Run() error {
 	select {
 	case <-c.stop:
-		c.conn.Close()
 		return nil
 	default:
-		err := c.createClientSocket()
-		defer c.conn.Close()
-
+		betService, err := NewBetService(c.config.ServerAddress, c.config.BatchAmount)
 		if err != nil {
-			log.Criticalf("action: connect | result: fail | client_id: %v | error: %v",
+			log.Criticalf("action: create_bet_service | result: fail | client_id: %v | error: %v",
 				c.config.ID,
 				err,
 			)
 			return err
 		}
-		betService := NewBetService(c.conn, c.config.BatchAmount)
+
 		err = betService.ProcessCSVInBatches(AGENCY_CSV_PATH, c.config.ID)
 		if err != nil {
 			log.Criticalf("action: process_csv | result: fail | client_id: %v | error: %v",
@@ -94,6 +77,15 @@ func (c *Client) Run() error {
 			)
 			return err
 		}
+		err = betService.HandleWinners()
+		if err != nil {
+			log.Criticalf("action: handle_winners | result: fail | client_id: %v | error: %v",
+				c.config.ID,
+				err,
+			)
+			return err
+		}
+		CloseBetService(betService)
 	}
 	log.Infof("action: send_batches_finished | result: success | client_id: %v", c.config.ID)
 	return nil

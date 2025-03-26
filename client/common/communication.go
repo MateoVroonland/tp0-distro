@@ -10,13 +10,24 @@ import (
 )
 
 type CompleteSocket struct {
-	conn net.Conn
+	conn       net.Conn
+	serverAddr string
 }
 
-func NewCompleteSocket(conn net.Conn) *CompleteSocket {
-	return &CompleteSocket{
-		conn: conn,
+func NewCompleteSocket(serverAddr string) (*CompleteSocket, error) {
+	conn, err := net.Dial("tcp", serverAddr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to %s: %w", serverAddr, err)
 	}
+
+	return &CompleteSocket{
+		conn:       conn,
+		serverAddr: serverAddr,
+	}, nil
+}
+
+func (c *CompleteSocket) GetServerAddr() string {
+	return c.serverAddr
 }
 
 func AppendDataLength(data []byte) []byte {
