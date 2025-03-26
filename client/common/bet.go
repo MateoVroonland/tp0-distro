@@ -97,13 +97,11 @@ func (s *BetService) HandleWinners(agency string) error {
 	maxTries := 10
 	initialWaitTime := 200 * time.Millisecond
 	waitTime := initialWaitTime
-	response := ""
-	var err error
 	successfulResponse := false
 	serverAddr := s.Sock.GetServerAddr()
 
 	for tries := 1; tries <= maxTries; tries++ {
-		response, err = s.AskForWinners(agency)
+		_, err := s.AskForWinners(agency)
 		if err != nil {
 			s.Sock.Close()
 			time.Sleep(waitTime)
@@ -125,7 +123,12 @@ func (s *BetService) HandleWinners(agency string) error {
 		return fmt.Errorf("failed to get winners after %d attempts", maxTries)
 	}
 
-	winners := DecodeWinners(response)
+	reponseWinners, msgType, err := s.Sock.ReceiveAll()
+	if err != nil || msgType != MSG_TYPE_WINNERS {
+		return fmt.Errorf("failed to receive winners: %w", err)
+	}
+
+	winners := DecodeWinners(reponseWinners)
 	winnersAmount := len(winners)
 
 	log.Infof("action: consulta_ganadores | result: success | cant_ganadores: %d", winnersAmount)
