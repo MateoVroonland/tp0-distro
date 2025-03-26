@@ -1,3 +1,4 @@
+import os
 import socket
 import logging
 import signal
@@ -23,6 +24,7 @@ class Server:
         self._running = True
         self._active_client_connection = None
         self._finished_agencies = {}
+        self._expected_agencies = int(os.getenv('NUM_AGENCIES', 5))
 
     def __signal_handler(self, signum, frame):
         self._running = False
@@ -59,6 +61,9 @@ class Server:
         return agency
     
     def all_agencies_have_finished(self):
+        if len(self._finished_agencies) < self._expected_agencies:
+            return False
+        
         for _, finished in self._finished_agencies.items():
             if not finished:
                 return False
