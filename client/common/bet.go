@@ -105,7 +105,7 @@ func (s *BetService) HandleWinners() error {
 	for tries := 1; tries <= maxTries; tries++ {
 		response, err = s.AskForWinners()
 		if err != nil {
-			log.Errorf("winners not ready, retrying in %v", waitTime)
+			log.Errorf("failed to get winners: %v", err)
 			s.Sock.Close()
 			time.Sleep(waitTime)
 			waitTime *= 2
