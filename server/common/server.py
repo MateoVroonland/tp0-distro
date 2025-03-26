@@ -69,9 +69,9 @@ class Server:
         return winners
     
     def send_winners(self, client_sock, winners):
-        winners = ",".join(winners)
-        winners = winners + "\n"
-        client_sock.send_all(winners.encode('utf-8'), MSG_TYPE_WINNERS)
+        winners_joined = ",".join(winners)
+        winners_msg = winners_joined + "\n"
+        client_sock.send_all(winners_msg.encode('utf-8'), MSG_TYPE_WINNERS)
 
     def __handle_client_connection(self, client_sock):
         try:

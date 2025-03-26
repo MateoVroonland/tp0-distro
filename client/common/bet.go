@@ -90,6 +90,9 @@ func (s *BetService) ProcessCSVInBatches(filepathCsv string, agency string) erro
 
 func DecodeWinners(data string) []string {
 	trimmedLine := strings.TrimSuffix(data, "\n")
+	if len(trimmedLine) == 0 {
+		return []string{}
+	}
 	return strings.Split(trimmedLine, ",")
 }
 
