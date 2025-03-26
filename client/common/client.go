@@ -24,16 +24,23 @@ type ClientConfig struct {
 
 // Client Entity that encapsulates how
 type Client struct {
-	config ClientConfig
-	stop   chan bool
+	config     ClientConfig
+	stop       chan bool
+	betService *BetService
 }
 
 // NewClient Initializes a new client receiving the configuration
 // as a parameter
 func NewClient(config ClientConfig) *Client {
+	betService, err := NewBetService(config.ServerAddress, config.BatchAmount)
+	if err != nil {
+		return nil
+	}
+
 	client := &Client{
-		config: config,
-		stop:   make(chan bool),
+		config:     config,
+		stop:       make(chan bool),
+		betService: betService,
 	}
 
 	signalReceiver := make(chan os.Signal, 1)
@@ -51,25 +58,13 @@ func NewClient(config ClientConfig) *Client {
 	return client
 }
 
-// CreateClientSocket Initializes client socket. In case of
-// failure, error is printed in stdout/stderr and exit 1
-// is returned
-
 func (c *Client) Run() error {
 	select {
 	case <-c.stop:
+		CloseBetService(c.betService)
 		return nil
 	default:
-		betService, err := NewBetService(c.config.ServerAddress, c.config.BatchAmount)
-		if err != nil {
-			log.Criticalf("action: create_bet_service | result: fail | client_id: %v | error: %v",
-				c.config.ID,
-				err,
-			)
-			return err
-		}
-
-		err = betService.ProcessCSVInBatches(AGENCY_CSV_PATH, c.config.ID)
+		err := c.betService.ProcessCSVInBatches(AGENCY_CSV_PATH, c.config.ID)
 		if err != nil {
 			log.Criticalf("action: process_csv | result: fail | client_id: %v | error: %v",
 				c.config.ID,
@@ -77,7 +72,7 @@ func (c *Client) Run() error {
 			)
 			return err
 		}
-		err = betService.HandleWinners(c.config.ID)
+		err = c.betService.HandleWinners(c.config.ID)
 		if err != nil {
 			log.Criticalf("action: handle_winners | result: fail | client_id: %v | error: %v",
 				c.config.ID,
@@ -85,7 +80,7 @@ func (c *Client) Run() error {
 			)
 			return err
 		}
-		CloseBetService(betService)
+		CloseBetService(c.betService)
 	}
 	log.Infof("action: send_batches_finished | result: success | client_id: %v", c.config.ID)
 	return nil
