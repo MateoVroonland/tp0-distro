@@ -76,8 +76,8 @@ func (s *BetService) ProcessCSVInBatches(filepathCsv string, agency string) erro
 	return nil
 }
 
-func (s *BetService) AskForWinners() (string, error) {
-	err := s.SendGetWinners()
+func (s *BetService) AskForWinners(agency string) (string, error) {
+	err := s.SendGetWinners(agency)
 	if err != nil {
 		return "", fmt.Errorf("failed to send GET_WINNERS: %w", err)
 	}
@@ -93,7 +93,7 @@ func (s *BetService) AskForWinners() (string, error) {
 	return response, nil
 }
 
-func (s *BetService) HandleWinners() error {
+func (s *BetService) HandleWinners(agency string) error {
 	maxTries := 10
 	initialWaitTime := 200 * time.Millisecond
 	waitTime := initialWaitTime
@@ -103,9 +103,8 @@ func (s *BetService) HandleWinners() error {
 	serverAddr := s.Sock.GetServerAddr()
 
 	for tries := 1; tries <= maxTries; tries++ {
-		response, err = s.AskForWinners()
+		response, err = s.AskForWinners(agency)
 		if err != nil {
-			log.Errorf("failed to get winners: %v", err)
 			s.Sock.Close()
 			time.Sleep(waitTime)
 			waitTime *= 2
@@ -178,8 +177,8 @@ func (s *BetService) SendFinBatches() error {
 	return nil
 }
 
-func (s *BetService) SendGetWinners() error {
-	err := s.Sock.SendAll([]byte(MSG_TYPE_GET_WINNERS), MSG_TYPE_GET_WINNERS)
+func (s *BetService) SendGetWinners(agency string) error {
+	err := s.Sock.SendAll([]byte(agency), MSG_TYPE_GET_WINNERS)
 	if err != nil {
 		return fmt.Errorf("failed to send GET_WINNERS: %w", err)
 	}

@@ -77,7 +77,7 @@ func (c *Client) Run() error {
 			)
 			return err
 		}
-		err = betService.HandleWinners()
+		err = betService.HandleWinners(c.config.ID)
 		if err != nil {
 			log.Criticalf("action: handle_winners | result: fail | client_id: %v | error: %v",
 				c.config.ID,

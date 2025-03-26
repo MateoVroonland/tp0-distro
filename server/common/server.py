@@ -86,10 +86,11 @@ class Server:
                 if msg_type == MSG_TYPE_FIN:
                     self._finished_agencies[agency_id] = True
                 elif msg_type == MSG_TYPE_BATCH:
-                   agency_id = self.process_batch(client_sock, bet_data)
-                   self._finished_agencies[agency_id] = False
+                    agency_id = self.process_batch(client_sock, bet_data)
+                    self._finished_agencies[agency_id] = False
                 elif msg_type == MSG_TYPE_GET_WINNERS:
                     if self.all_agencies_have_finished():
+                        agency_id = int(bet_data.strip())
                         client_sock.send_all(MSG_TYPE_ACK.encode('utf-8'), MSG_TYPE_ACK)
                         logging.info(f"action: sorteo | result: success")
                         winners = self.process_draw(agency_id)
@@ -98,7 +99,7 @@ class Server:
                         client_sock.send_all(MSG_TYPE_NACK.encode('utf-8'), MSG_TYPE_NACK)
                     break
                 else:
-                    logging.error(f"action: handle_client | result: fail | error: {e}")
+                    logging.error(f"action: handle_client | result: fail | error: Invalid message type")
                     client_sock.send_all(MSG_TYPE_NACK.encode('utf-8'), MSG_TYPE_NACK)
                     break
                 bet_data, msg_type = client_sock.recv_all()
