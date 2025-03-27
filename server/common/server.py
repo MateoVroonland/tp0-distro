@@ -35,10 +35,11 @@ class Server:
         """
 
         while self._running:
-            client_sock = CompleteSocket(self.__accept_new_connection())
+            client_sock = self.__accept_new_connection()
             if client_sock is not None:
-                self._active_client_connection = client_sock
-                self.__handle_client_connection(client_sock)
+                complete_sock = CompleteSocket(client_sock)
+                self._active_client_connection = complete_sock
+                self.__handle_client_connection(complete_sock)
 
     def __handle_client_connection(self, client_sock):
         try:
