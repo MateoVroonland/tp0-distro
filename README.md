@@ -218,3 +218,11 @@ Este script utiliza una imagen de docker la cual tiene netcat instalado por defe
 En el cliente Go, se utilizó la biblioteca os/signal para escuchar la señal SIGTERM mediante un channel dedicado, que al recibir la señal, envía un mensaje a otro channel para interrumpir la ejecución del loop principal. Cuando esto ocurre, el cliente cierra apropiadamente su conexion activa.
 
 Por su parte, en el servidor Python, se implementó un manejador de señales que marca el flag running como falso para terminar el loop, cierra la posible conexion activa del cliente y finalmente cierra el socket del servidor. Cabe destacar que antes de cerrar la conexión con el cliente llama a shutdown para que el cliente pueda recibir la señal de cierre (esto no es estríctamente necesario, pero es una buena práctica).
+
+### Ejercicio 5
+
+Para realizar este ejercicio primero se implementó un capa de comunicación donde se solucionan los problemas de short read y short write. Para ello, para solucionar el short write simplemente se llama write por la conexión (la cual devuelve la cantidad de bytes correctamente escritos) hasta que se hayan escrito todos los bytes del mensaje indicado. Para el caso de short read fue necesario implementar un humilde protocolo con campos de longitud variable con el formato de mensaje: `length_payload_in_bytes:payload`. Luego, al momento de leer un mensaje, se lee primero la longitud del mensaje (hasta encontrar el delimitador `:`) y teniendo esta información luego se puede leer el mensaje completo con `ReadFull` que asegura que se lean todos los bytes indicados por parámetro.
+
+Por otro lado, para pasar correctamente la información de la apuesta se envía en el payload la misma con el siguiente formato:
+`Agencia,Nombre,Apellido,Dni,FechaNacimiento,NumeroApuesta\n`. Este protocolo es sumamente simple y da un gran facilidad al servidor para parsear la información.
+Una vez parseada el servidor envía un ACK al cliente (mensaje ACK en el payload). No fue necesario incluir un tipo de mensaje en el protocolo a la hora de enviar los mensajes, ya que la cantidad de tipos es dos, y se puede inferir fácilmente el tipo de mensaje por el contenido del payload. Sumar los tipos agregaría complejidad innecesaria al protocolo.
