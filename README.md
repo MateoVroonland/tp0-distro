@@ -218,3 +218,35 @@ Este script utiliza una imagen de docker la cual tiene netcat instalado por defe
 En el cliente Go, se utilizó la biblioteca os/signal para escuchar la señal SIGTERM mediante un channel dedicado, que al recibir la señal, envía un mensaje a otro channel para interrumpir la ejecución del loop principal. Cuando esto ocurre, el cliente cierra apropiadamente su conexion activa.
 
 Por su parte, en el servidor Python, se implementó un manejador de señales que marca el flag running como falso para terminar el loop, cierra la posible conexion activa del cliente y finalmente cierra el socket del servidor. Cabe destacar que antes de cerrar la conexión con el cliente llama a shutdown para que el cliente pueda recibir la señal de cierre (esto no es estríctamente necesario, pero es una buena práctica).
+
+### Ejercicio 5
+
+Para realizar este ejercicio primero se implementó un capa de comunicación donde se solucionan los problemas de short read y short write. Para ello, para solucionar el short write simplemente se llama write por la conexión (la cual devuelve la cantidad de bytes correctamente escritos) hasta que se hayan escrito todos los bytes del mensaje indicado. Para el caso de short read fue necesario implementar un humilde protocolo con campos de longitud variable con el formato de mensaje: `length_payload_in_bytes:payload`. Luego, al momento de leer un mensaje, se lee primero la longitud del mensaje (hasta encontrar el delimitador `:`) y teniendo esta información luego se puede leer el mensaje completo con `ReadFull` que asegura que se lean todos los bytes indicados por parámetro.
+
+Por otro lado, para pasar correctamente la información de la apuesta se envía en el payload la misma con el siguiente formato:
+`Agencia,Nombre,Apellido,Dni,FechaNacimiento,NumeroApuesta`. Este protocolo es sumamente simple y da un gran facilidad al servidor para parsear la información.
+Una vez parseada el servidor envía un ACK al cliente (mensaje ACK en el payload). No fue necesario incluir un tipo de mensaje en el protocolo a la hora de enviar los mensajes, ya que la cantidad de tipos es dos, y se puede inferir fácilmente el tipo de mensaje por el contenido del payload. Sumar los tipos agregaría complejidad innecesaria al protocolo.
+
+### Ejercicio 6
+
+Para realizar este ejercicio se tomaron las bases del envío de un solo bet (mismo encoding estilo csv, misma recepción de ack del cliente por cada envío) pero ahora en vez de enviar una sola bet envía tantas como tenga configurado el cliente en su `maxBatchAmount` (en el último batch obviamente puede enviar de menos).
+Tambien se agrego un `maxBatchAmount` de 75, imaginando que cada bet tiene como promedio 100 bytes, se llega a un tamaño de 7500 bytes, que es un tamaño razonable para un mensaje y deja algo de margen para la restricción de los 8kb.
+Las bets de cada batch se mandan todas en el payload siguiendo el siguiente formato:
+
+````Agencia1,Nombre1,Apellido1,Dni1,FechaNacimiento1,NumeroApuesta1\n
+   Agencia1,Nombre2,Apellido2,Dni2,FechaNacimiento2,NumeroApuesta2\n
+   Agencia1,Nombre3,Apellido3,Dni3,FechaNacimiento3,NumeroApuesta3\n```
+````
+
+Estas apuestas, a diferencia del ej5 que se extraía la apuesta de unas variables de entorno, se sacan de un csv montado en un volumen en el container de cada cliente. La parte clave de este ejercicio es que NO se cargan todos los batches en memoria y luego se envían, en este caso leemos linea a linea el csv utilizando un `Reader`, se arma la apuesta y una vez el batch esté lleno se lo envía al servidor. Esto se repite hasta que no haya más apuestas, donde el cliente le manda un mensaje al servidor diciendo que terminó de enviar todas las apuestas.
+Cabe destacar que todavía no se manejan tipos de mensajes en el protocolo, toda esta lógica se maneja con el contenido del payload y siendo que hay pocos tipos de mensajes aun no se consideró necesario.
+
+### Ejercicio 7
+
+Como en este ejercicio ya tenemos diversos tipos de mensajes, se optó por modificar el protocolo al siguiente:
+`legth_bytes_type_and_payload:type:payload`
+
+De esta manera el servidor puede decidir fácilmente qué es necesario hacer según el tipo de mensaje que recibe. El comportamiento de envío de batches sigue tal cual como en el ejercicio 6, pero en este caso se agregó un diccionario al servidor para mantener trackeo de cuántos clientes están enviando batches y cuantos terminaron, lo cual nos permite enviar los ganadores de cada agencia respectivamente una vez hayan terminado todos.
+Cabe destacar que como el servidor no es concurrente, el cliente no se puede quedar trabado escuchando a los winners ya que de esta manera el servidor nunca va a procesar a los demás clientes. Por lo tanto, se implementó una lógica de exponential backoff dentro del cliente el cual una vez mandado el mensaje indicando que terminó de enviar batches, este se conecta y reconecta cada cierto tiempo (cada vez mayor) a consultar por los ganadores. En caso de que los winners no estén listos, el servidor envía un `NACK` lo cual le indica al cliente que vuelva a intentar en un tiempo determinado.
+
+Además, en este ejercicio se agregó unas correcciones al graceful shutdown del cliente para que finalice correctamente la goroutine encargada de escuchar el `SIGTERM`. También se mejoró el scope del shutdown en el cliente, si llega mientras está enviando batches o consultando por los ganadores corta (son los lugares donde se consume la gran mayoría del tiempo)
