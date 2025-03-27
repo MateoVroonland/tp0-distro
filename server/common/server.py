@@ -28,19 +28,14 @@ class Server:
 
         self._manager = Manager()
         self._file_lock = Lock()
-        self._agencies_lock = Lock()
         self._running = self._manager.Value('b', True)
-        self._finished_agencies = self._manager.dict()
         self._barrier = Barrier(self._expected_agencies)
         self._processes = []
 
     def shutdown(self):
         self._running.value = False
         for proc in self._processes:
-            proc.join(timeout=5)
-            if proc.is_alive():
-                logging.warning(f"Process {proc.pid} didn't exit cleanly, terminating")
-                proc.terminate()
+            proc.join()
         self._server_socket.close()
 
     def __signal_handler(self, signum, frame):
@@ -79,15 +74,6 @@ class Server:
         logging.info(f'action: apuesta_recibida | result: success | cantidad: {len(current_batch)}')
         client_sock.send_all(MSG_TYPE_ACK.encode('utf-8'), MSG_TYPE_ACK)
         return agency
-    
-    def all_agencies_have_finished(self):
-        if len(self._finished_agencies) < self._expected_agencies:
-            return False
-        
-        for _, finished in self._finished_agencies.items():
-            if not finished:
-                return False
-        return True
 
     def process_draw(self, agency_id):
         winners = winners_for_agency(agency_id)
@@ -104,12 +90,9 @@ class Server:
             bet_data, msg_type = client_sock.recv_all()
             while bet_data and self._running.value:
                 if msg_type == MSG_TYPE_FIN:
-                    with self._agencies_lock:
-                        self._finished_agencies[agency_id] = True
+                    logging.info(f"action: send batches finished | result: success")
                 elif msg_type == MSG_TYPE_BATCH:
                     agency_id = self.process_batch(client_sock, bet_data)
-                    with self._agencies_lock:
-                        self._finished_agencies[agency_id] = False
                 elif msg_type == MSG_TYPE_GET_WINNERS:
                     self._barrier.wait()
                     agency_id = int(bet_data.strip())
