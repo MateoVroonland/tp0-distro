@@ -43,7 +43,7 @@ func NewBetService(serverAddr string, batchAmount int) (*BetService, error) {
 	}, nil
 }
 
-func (s *BetService) ProcessCSVInBatches(filepathCsv string, agency string) error {
+func (s *BetService) ProcessCSVInBatches(filepathCsv string, agency string, sig_chan chan bool) error {
 	file, err := os.Open(filepathCsv)
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
@@ -55,13 +55,19 @@ func (s *BetService) ProcessCSVInBatches(filepathCsv string, agency string) erro
 	currentBatch := make([]*Bet, 0, s.BatchAmount)
 
 	for scanner.Scan() {
-		line := scanner.Text()
-		bet := DecodeBetLine(line, agency)
-		currentBatch = append(currentBatch, bet)
+		select {
+		case <-sig_chan:
+			// file closed with defer
+			return fmt.Errorf("received sigterm signal when sending bets")
+		default:
+			line := scanner.Text()
+			bet := DecodeBetLine(line, agency)
+			currentBatch = append(currentBatch, bet)
 
-		if len(currentBatch) == s.BatchAmount {
-			s.SendBatch(currentBatch)
-			currentBatch = make([]*Bet, 0, s.BatchAmount)
+			if len(currentBatch) == s.BatchAmount {
+				s.SendBatch(currentBatch)
+				currentBatch = make([]*Bet, 0, s.BatchAmount)
+			}
 		}
 	}
 	if len(currentBatch) > 0 {
@@ -93,30 +99,37 @@ func (s *BetService) AskForWinners(agency string) (string, error) {
 	return response, nil
 }
 
-func (s *BetService) HandleWinners(agency string) error {
+func (s *BetService) HandleWinners(agency string, sig_chan chan bool) error {
 	maxTries := 10
 	initialWaitTime := 200 * time.Millisecond
 	waitTime := initialWaitTime
 	successfulResponse := false
 	serverAddr := s.Sock.GetServerAddr()
 
+forLoop:
 	for tries := 1; tries <= maxTries; tries++ {
-		_, err := s.AskForWinners(agency)
-		if err != nil {
-			s.Sock.Close()
-			time.Sleep(waitTime)
-			waitTime *= 2
-			newSock, connErr := NewCompleteSocket(serverAddr)
-			if connErr != nil {
-				log.Errorf("failed to reconnect: %v", connErr)
+		select {
+		case <-sig_chan:
+			log.Info("received sigterm signal when asking for winners")
+			return fmt.Errorf("received sigterm signal when asking for winners")
+		default:
+			_, err := s.AskForWinners(agency)
+			if err != nil {
+				s.Sock.Close()
+				time.Sleep(waitTime)
+				waitTime *= 2
+				newSock, connErr := NewCompleteSocket(serverAddr)
+				if connErr != nil {
+					log.Errorf("failed to reconnect: %v", connErr)
+					continue
+				}
+				s.Sock = newSock
+
 				continue
 			}
-			s.Sock = newSock
-
-			continue
+			successfulResponse = true
+			break forLoop
 		}
-		successfulResponse = true
-		break
 	}
 
 	if !successfulResponse {

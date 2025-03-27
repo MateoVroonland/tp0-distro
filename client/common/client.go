@@ -64,7 +64,7 @@ func (c *Client) Run() error {
 		CloseBetService(c.betService)
 		return nil
 	default:
-		err := c.betService.ProcessCSVInBatches(AGENCY_CSV_PATH, c.config.ID)
+		err := c.betService.ProcessCSVInBatches(AGENCY_CSV_PATH, c.config.ID, c.stop)
 		if err != nil {
 			log.Criticalf("action: process_csv | result: fail | client_id: %v | error: %v",
 				c.config.ID,
@@ -72,7 +72,7 @@ func (c *Client) Run() error {
 			)
 			return err
 		}
-		err = c.betService.HandleWinners(c.config.ID)
+		err = c.betService.HandleWinners(c.config.ID, c.stop)
 		if err != nil {
 			log.Criticalf("action: handle_winners | result: fail | client_id: %v | error: %v",
 				c.config.ID,

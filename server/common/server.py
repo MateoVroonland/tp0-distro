@@ -82,7 +82,7 @@ class Server:
         try:
             agency_id = 0
             bet_data, msg_type = client_sock.recv_all()
-            while bet_data:
+            while bet_data and self._running:
                 if msg_type == MSG_TYPE_FIN:
                     self._finished_agencies[agency_id] = True
                 elif msg_type == MSG_TYPE_BATCH:
