@@ -92,7 +92,6 @@ class Server:
                 elif msg_type == MSG_TYPE_GET_WINNERS:
                     if self.all_agencies_have_finished():
                         agency_id = int(bet_data.strip())
-                        client_sock.send_all(MSG_TYPE_ACK.encode('utf-8'), MSG_TYPE_ACK)
                         logging.info(f"action: sorteo | result: success")
                         winners = self.process_draw(agency_id)
                         self.send_winners(client_sock, winners)

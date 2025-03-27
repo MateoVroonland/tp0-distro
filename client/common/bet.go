@@ -92,7 +92,7 @@ func (s *BetService) AskForWinners(agency string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to receive response: %w", err)
 	}
-	if msgType != MSG_TYPE_ACK {
+	if msgType != MSG_TYPE_WINNERS {
 		return "", fmt.Errorf("winners not ready, clients missing")
 	}
 
@@ -105,15 +105,16 @@ func (s *BetService) HandleWinners(agency string, sig_chan chan bool) error {
 	waitTime := initialWaitTime
 	successfulResponse := false
 	serverAddr := s.Sock.GetServerAddr()
+	var err error
+	responseWinners := ""
 
-forLoop:
-	for tries := 1; tries <= maxTries; tries++ {
+	for tries := 1; tries <= maxTries && !successfulResponse; tries++ {
 		select {
 		case <-sig_chan:
 			log.Info("received sigterm signal when asking for winners")
 			return fmt.Errorf("received sigterm signal when asking for winners")
 		default:
-			_, err := s.AskForWinners(agency)
+			responseWinners, err = s.AskForWinners(agency)
 			if err != nil {
 				s.Sock.Close()
 				time.Sleep(waitTime)
@@ -128,7 +129,6 @@ forLoop:
 				continue
 			}
 			successfulResponse = true
-			break forLoop
 		}
 	}
 
@@ -136,12 +136,7 @@ forLoop:
 		return fmt.Errorf("failed to get winners after %d attempts", maxTries)
 	}
 
-	reponseWinners, msgType, err := s.Sock.ReceiveAll()
-	if err != nil || msgType != MSG_TYPE_WINNERS {
-		return fmt.Errorf("failed to receive winners: %w", err)
-	}
-
-	winners := DecodeWinners(reponseWinners)
+	winners := DecodeWinners(responseWinners)
 	winnersAmount := len(winners)
 
 	log.Infof("action: consulta_ganadores | result: success | cant_ganadores: %d", winnersAmount)
