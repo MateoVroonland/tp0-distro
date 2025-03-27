@@ -45,7 +45,7 @@ class Server:
         try:
             bet_data = client_sock.recv_all()
             current_batch = []
-            while bet_data:
+            while bet_data and self._running:
                 if bet_data == FIN_MESSAGE:
                     logging.info(f"action: fin_received | result: success")
                     break
