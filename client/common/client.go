@@ -27,6 +27,7 @@ type Client struct {
 	config     ClientConfig
 	stop       chan bool
 	betService *BetService
+	main_done  chan bool
 }
 
 // NewClient Initializes a new client receiving the configuration
@@ -41,18 +42,23 @@ func NewClient(config ClientConfig) *Client {
 		config:     config,
 		stop:       make(chan bool),
 		betService: betService,
+		main_done:  make(chan bool),
 	}
 
 	signalReceiver := make(chan os.Signal, 1)
 	signal.Notify(signalReceiver, syscall.SIGTERM)
 
 	go func() {
-		sig := <-signalReceiver
-		log.Infof("action: signal_received | result: success | client_id: %v | signal: %v",
-			client.config.ID,
-			sig,
-		)
-		client.stop <- true
+		select {
+		case sig := <-signalReceiver:
+			log.Infof("action: signal_received | result: success | client_id: %v | signal: %v",
+				client.config.ID,
+				sig,
+			)
+			client.stop <- true
+		case <-client.main_done:
+			return
+		}
 	}()
 
 	return client
@@ -65,6 +71,7 @@ func (c *Client) Run() error {
 		return nil
 	default:
 		err := c.betService.ProcessCSVInBatches(AGENCY_CSV_PATH, c.config.ID, c.stop)
+		defer CloseBetService(c.betService)
 		if err != nil {
 			log.Criticalf("action: process_csv | result: fail | client_id: %v | error: %v",
 				c.config.ID,
@@ -80,8 +87,8 @@ func (c *Client) Run() error {
 			)
 			return err
 		}
-		CloseBetService(c.betService)
 	}
 	log.Infof("action: send_batches_finished | result: success | client_id: %v", c.config.ID)
+	c.main_done <- true
 	return nil
 }
