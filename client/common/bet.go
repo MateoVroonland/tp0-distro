@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 )
 
 const (
@@ -82,58 +81,19 @@ func (s *BetService) ProcessCSVInBatches(filepathCsv string, agency string, sig_
 	return nil
 }
 
-func (s *BetService) AskForWinners(agency string) (string, error) {
+func (s *BetService) AskForWinners(agency string) error {
 	err := s.SendGetWinners(agency)
 	if err != nil {
-		return "", fmt.Errorf("failed to send GET_WINNERS: %w", err)
+		return fmt.Errorf("failed to send GET_WINNERS: %w", err)
 	}
-
-	response, msgType, err := s.Sock.ReceiveAll()
-	if err != nil {
-		return "", fmt.Errorf("failed to receive response: %w", err)
-	}
-	if msgType != MSG_TYPE_ACK {
-		return "", fmt.Errorf("winners not ready, clients missing")
-	}
-
-	return response, nil
+	return nil
 }
 
-func (s *BetService) HandleWinners(agency string, sig_chan chan bool) error {
-	maxTries := 10
-	initialWaitTime := 200 * time.Millisecond
-	waitTime := initialWaitTime
-	successfulResponse := false
-	serverAddr := s.Sock.GetServerAddr()
+func (s *BetService) HandleWinners(agency string) error {
+	err := s.AskForWinners(agency)
 
-forLoop:
-	for tries := 1; tries <= maxTries; tries++ {
-		select {
-		case <-sig_chan:
-			log.Info("received sigterm signal when asking for winners")
-			return fmt.Errorf("received sigterm signal when asking for winners")
-		default:
-			_, err := s.AskForWinners(agency)
-			if err != nil {
-				s.Sock.Close()
-				time.Sleep(waitTime)
-				waitTime *= 2
-				newSock, connErr := NewCompleteSocket(serverAddr)
-				if connErr != nil {
-					log.Errorf("failed to reconnect: %v", connErr)
-					continue
-				}
-				s.Sock = newSock
-
-				continue
-			}
-			successfulResponse = true
-			break forLoop
-		}
-	}
-
-	if !successfulResponse {
-		return fmt.Errorf("failed to get winners after %d attempts", maxTries)
+	if err != nil {
+		return fmt.Errorf("failed to ask for winners: %w", err)
 	}
 
 	reponseWinners, msgType, err := s.Sock.ReceiveAll()
