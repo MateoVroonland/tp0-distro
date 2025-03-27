@@ -117,6 +117,12 @@ func main() {
 	}
 
 	client := common.NewClient(clientConfig)
+
+	if client == nil {
+		log.Critical("failed to create client")
+		return
+	}
+
 	client.Run()
 
 	time.Sleep(1000 * time.Millisecond)
