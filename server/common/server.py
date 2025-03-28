@@ -76,7 +76,8 @@ class Server:
         return agency
 
     def process_draw(self, agency_id):
-        winners = winners_for_agency(agency_id)
+        with self._file_lock:
+            winners = winners_for_agency(agency_id)
         return winners
     
     def send_winners(self, client_sock, winners):
